@@ -92,11 +92,23 @@ function commandValidate() {
   console.log("Project is valid");
 }
 
+function validateTenantExportShape(actualRaw, tenantFile) {
+  if (!actualRaw || typeof actualRaw !== "object") throw new Error(`${tenantFile} is not a JSON object`);
+  if (actualRaw.ok === false || actualRaw.error) {
+    throw new Error(`${tenantFile} is an error response, not a tenant export: ${actualRaw.error || JSON.stringify(actualRaw)}`);
+  }
+  const exportKeys = ["tables", "views", "pages", "triggers", "roles", "menu", "settings", "plugins", "reference_data"];
+  if (!exportKeys.some((key) => Object.prototype.hasOwnProperty.call(actualRaw, key))) {
+    throw new Error(`${tenantFile} does not look like a Saltcorn tenant export`);
+  }
+}
+
 function loadDesiredAndActual() {
   const desired = loadProjectState();
   const tenantFile = arg("--tenant-export");
   if (!tenantFile) throw new Error("--tenant-export FILE is required");
   const actualRaw = readJsonIfExists(path.resolve(tenantFile));
+  validateTenantExportShape(actualRaw, tenantFile);
   const actual = normalizeProjectExport(actualRaw || {});
   return { desired, actual };
 }
