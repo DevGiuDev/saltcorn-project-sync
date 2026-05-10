@@ -31,6 +31,7 @@ Usage:
   saltcorn-project-sync diff --tenant-export FILE
   saltcorn-project-sync plan [--env ENV] [--backup] --tenant-export FILE
   saltcorn-project-sync report [--env ENV] [--backup] --tenant-export FILE [--out FILE]
+  saltcorn-project-sync preflight [--env ENV] [--backup] --tenant-export FILE
   saltcorn-project-sync apply-file [--env ENV] [--backup] --tenant-export FILE --out FILE
   saltcorn-project-sync backup [--env ENV] [--source FILE]
   saltcorn-project-sync record-deployment --env ENV --status STATUS
@@ -174,6 +175,28 @@ function markdownReport({ env, plan, validation }) {
     ``,
   ];
   return `${lines.join("\n")}\n`;
+}
+
+function commandPreflight() {
+  const { desired, actual } = loadDesiredAndActual();
+  const intents = loadChangeIntents();
+  const env = arg("--env", "dev");
+  const validation = validateProject(process.cwd(), loadManifest(), intents);
+  const plan = planProject({ desired, actual, intents, env, backup: has("--backup") });
+  const result = {
+    ok: validation.errors.length === 0 && plan.blocked.length === 0,
+    env,
+    validation: { errors: validation.errors, warnings: validation.warnings },
+    plan: {
+      operations: plan.operations.length,
+      warnings: plan.warnings.length,
+      blocked: plan.blocked,
+      backup_required: plan.backup_required,
+      backup_present: plan.backup_present,
+    },
+  };
+  process.stdout.write(canonicalStringify(result));
+  if (!result.ok) process.exit(5);
 }
 
 function commandReport() {
@@ -355,6 +378,7 @@ async function main() {
   else if (cmd === "diff") commandDiff();
   else if (cmd === "plan") commandPlan();
   else if (cmd === "report") commandReport();
+  else if (cmd === "preflight") commandPreflight();
   else if (cmd === "apply-file") commandApplyFile();
   else if (cmd === "backup") commandBackup();
   else if (cmd === "record-deployment") commandRecordDeployment();

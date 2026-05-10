@@ -11,7 +11,7 @@ npm test
 npm run lint
 saltcorn-project-sync validate
 saltcorn-project-sync deps
-saltcorn-project-sync plan --env test --backup --tenant-export tenant-export.json
+saltcorn-project-sync preflight --env test --backup --tenant-export tenant-export.json
 ```
 
 ## Promotion flow
