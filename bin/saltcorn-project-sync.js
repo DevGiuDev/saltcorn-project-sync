@@ -42,7 +42,7 @@ Usage:
   saltcorn-project-sync git-pull
   saltcorn-project-sync git-push
   saltcorn-project-sync export [--adapter command|rest|native] --out DIR
-  saltcorn-project-sync apply [--adapter command|rest|native] [--env ENV]
+  saltcorn-project-sync apply [--adapter command|rest|native] [--env ENV] [--allow-destructive]
   saltcorn-project-sync restore [--adapter command|rest|native] [--deployment ID|last]
 
 Live export/apply is adapter-backed. Use 'command' for wrappers or 'native' inside a Saltcorn runtime with @saltcorn/data available.
@@ -365,7 +365,15 @@ async function commandApplyLive() {
     process.exit(3);
   }
   const adapterResult = adapter.applyPlan
-    ? await adapter.applyPlan({ desired, actual, plan: result.plan, state: result.state, env, backup })
+    ? await adapter.applyPlan({
+        desired,
+        actual,
+        plan: result.plan,
+        state: result.state,
+        env,
+        backup,
+        allow_destructive: has("--allow-destructive"),
+      })
     : await adapter.applyProject(result.state);
   appendDeploymentRecord(process.cwd(), {
     env,

@@ -11,6 +11,7 @@ saltcorn-project-sync plan --env prod --backup --tenant-export tenant.json
 saltcorn-project-sync report --env prod --backup --tenant-export tenant.json --out deploy-report.md
 saltcorn-project-sync preflight --env prod --backup --tenant-export tenant.json
 saltcorn-project-sync apply-file --env dev --tenant-export tenant.json --out applied.json
+saltcorn-project-sync apply --adapter rest --env dev --allow-destructive
 saltcorn-project-sync backup --env prod
 saltcorn-project-sync record-deployment --env prod --status success
 saltcorn-project-sync doctor
