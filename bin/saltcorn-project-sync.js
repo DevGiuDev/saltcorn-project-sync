@@ -40,9 +40,9 @@ Usage:
   saltcorn-project-sync git-commit -m MESSAGE
   saltcorn-project-sync git-pull
   saltcorn-project-sync git-push
-  saltcorn-project-sync export [--adapter command|native] --out DIR
-  saltcorn-project-sync apply [--adapter command|native] [--env ENV]
-  saltcorn-project-sync restore [--adapter command|native] [--deployment ID|last]
+  saltcorn-project-sync export [--adapter command|rest|native] --out DIR
+  saltcorn-project-sync apply [--adapter command|rest|native] [--env ENV]
+  saltcorn-project-sync restore [--adapter command|rest|native] [--deployment ID|last]
 
 Live export/apply is adapter-backed. Use 'command' for wrappers or 'native' inside a Saltcorn runtime with @saltcorn/data available.
 `);

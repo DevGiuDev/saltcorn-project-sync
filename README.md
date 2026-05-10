@@ -92,6 +92,7 @@ Direct Saltcorn export/apply is adapter-backed. The included `command` adapter d
 - [Safety model](docs/safety-model.md)
 - [CLI](docs/cli.md)
 - [Native adapter](docs/native-adapter.md)
+- [REST adapter](docs/rest-adapter.md)
 - [Reference data](docs/reference-data.md)
 - [CI/CD](docs/ci-cd.md)
 - [Compatibility](docs/compatibility.md)
