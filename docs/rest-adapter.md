@@ -10,11 +10,13 @@ SALTCORN_PROJECT_SYNC_API_TOKEN=...
 
 Default endpoints:
 
-- `GET /api/project-sync/info`
-- `GET /api/project-sync/export`
-- `POST /api/project-sync/apply`
-- `POST /api/project-sync/backup`
-- `POST /api/project-sync/restore`
+- `GET /project-sync/api/info`
+- `GET /project-sync/api/export`
+- `POST /project-sync/api/apply`
+- `POST /project-sync/api/backup`
+- `POST /project-sync/api/restore`
+
+The `/project-sync/api/*` path avoids collisions with Saltcorn's core `/api` router. Legacy GET aliases under `/api/project-sync/*` may work, but POST should use `/project-sync/api/*`.
 
 You can override each endpoint:
 

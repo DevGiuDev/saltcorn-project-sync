@@ -6,7 +6,7 @@ test("plugin exposes project sync routes", () => {
   assert(routes.some((route) => route.url === "/project-sync"));
   assert(routes.some((route) => route.url === "/project-sync/deployments"));
   assert(routes.some((route) => route.url === "/api/project-sync/export"));
-  assert(routes.some((route) => route.url === "/api/project-sync/apply"));
+  assert(routes.some((route) => route.url === "/project-sync/api/apply"));
 });
 
 test("deploymentsTable handles missing log", () => {

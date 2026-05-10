@@ -24,7 +24,7 @@ saltcorn-project-sync git-status
 `export` and `apply` use a tenant adapter. Available adapters:
 
 - `command`: delegates to environment-configured commands. This is the safest integration point for existing Saltcorn pack/snapshot tooling.
-- `rest`: calls HTTP endpoints such as `/api/project-sync/export` and `/api/project-sync/apply`.
+- `rest`: calls HTTP endpoints such as `/project-sync/api/export` and `/project-sync/api/apply`.
 - `native` / `saltcorn-native`: uses `@saltcorn/data` models when the CLI runs inside a configured Saltcorn runtime. Native apply currently covers table/field create/update/rename/drop and generic create/update for views/pages/triggers/roles when the installed Saltcorn model exposes matching methods.
 
 The `command` adapter is configured via environment variables:
