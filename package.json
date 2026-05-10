@@ -1,0 +1,30 @@
+{
+  "author": "",
+  "bin": {
+    "saltcorn-project-sync": "bin/saltcorn-project-sync.js",
+    "sc-project-sync": "bin/saltcorn-project-sync.js"
+  },
+  "dependencies": {},
+  "description": "Version and deploy Saltcorn apps as Git-backed projects with safe, deterministic exports.",
+  "devDependencies": {},
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "saltcorn",
+    "saltcorn-plugin",
+    "versioning",
+    "git",
+    "deployment",
+    "migration"
+  ],
+  "license": "MIT",
+  "main": "index.js",
+  "name": "saltcorn-project-sync",
+  "scripts": {
+    "format:json": "node scripts/format-json.js",
+    "lint": "find index.js bin lib scripts test -name '*.js' -print0 | xargs -0 -n1 node --check",
+    "test": "node --test"
+  },
+  "version": "0.1.0"
+}

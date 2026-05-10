@@ -1,0 +1,13 @@
+{
+  "fields": [
+    {
+      "name": "status",
+      "type": "String"
+    },
+    {
+      "name": "total",
+      "type": "Float"
+    }
+  ],
+  "name": "invoices"
+}

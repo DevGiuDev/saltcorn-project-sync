@@ -1,0 +1,8 @@
+{
+  "from": "old_status",
+  "id": "2026-05-10-rename-invoice-status",
+  "reason": "Normalize invoice lifecycle naming",
+  "table": "invoices",
+  "to": "status",
+  "type": "rename_field"
+}

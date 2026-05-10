@@ -1,0 +1,25 @@
+{
+  "excluded": {
+    "logs": true,
+    "secrets": true,
+    "sessions": true,
+    "transactional_data": true,
+    "users": true
+  },
+  "format_version": 1,
+  "name": "Example ERP App",
+  "objects": {
+    "pages": [],
+    "roles": [],
+    "tables": [
+      "invoices"
+    ],
+    "triggers": [],
+    "views": []
+  },
+  "saltcorn": {
+    "min_version": null,
+    "tested_versions": []
+  },
+  "slug": "example-erp-app"
+}

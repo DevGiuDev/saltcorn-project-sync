@@ -1,0 +1,9 @@
+{
+  "plugins": [
+    {
+      "name": "base",
+      "source": "builtin",
+      "version": null
+    }
+  ]
+}
