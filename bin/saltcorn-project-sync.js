@@ -17,6 +17,7 @@ const { getTenantAdapter } = require("../lib/tenant-adapters");
 const { analyzeDependencies } = require("../lib/dependencies");
 const { writeReferenceTable } = require("../lib/reference-data");
 const { validateProject } = require("../lib/validator");
+const { checkPluginCompatibility, checkSaltcornCompatibility } = require("../lib/compatibility");
 
 function usage() {
   console.log(`Saltcorn Project Sync
@@ -34,6 +35,7 @@ Usage:
   saltcorn-project-sync backup [--env ENV] [--source FILE]
   saltcorn-project-sync record-deployment --env ENV --status STATUS
   saltcorn-project-sync doctor
+  saltcorn-project-sync check-live [--adapter command|native]
   saltcorn-project-sync git-status
   saltcorn-project-sync git-commit -m MESSAGE
   saltcorn-project-sync git-pull
@@ -224,6 +226,19 @@ function commandRecordDeployment() {
   process.stdout.write(canonicalStringify(record));
 }
 
+async function commandCheckLive() {
+  const adapter = getTenantAdapter(arg("--adapter", process.env.SALTCORN_PROJECT_SYNC_ADAPTER || "command"));
+  const manifest = loadManifest();
+  const pluginLock = readJsonIfExists(path.join(process.cwd(), "plugins.lock.json"), { plugins: [] });
+  const info = adapter.info ? await adapter.info() : { adapter: adapter.name || "unknown" };
+  const exported = normalizeProjectExport(await adapter.exportProject());
+  const saltcorn = checkSaltcornCompatibility(manifest, info.saltcorn_version);
+  const plugins = checkPluginCompatibility(pluginLock.plugins || [], exported.plugins || []);
+  const result = { ok: saltcorn.ok && plugins.ok, info, saltcorn, plugins };
+  process.stdout.write(canonicalStringify(result));
+  if (!result.ok) process.exit(4);
+}
+
 function commandDoctor() {
   const checks = [];
   const validation = (() => {
@@ -344,6 +359,7 @@ async function main() {
   else if (cmd === "backup") commandBackup();
   else if (cmd === "record-deployment") commandRecordDeployment();
   else if (cmd === "doctor") commandDoctor();
+  else if (cmd === "check-live") await commandCheckLive();
   else if (cmd === "git-status") commandGitStatus();
   else if (cmd === "git-commit") commandGitCommit();
   else if (cmd === "git-pull") commandGitPull();

@@ -13,6 +13,7 @@ saltcorn-project-sync apply-file --env dev --tenant-export tenant.json --out app
 saltcorn-project-sync backup --env prod
 saltcorn-project-sync record-deployment --env prod --status success
 saltcorn-project-sync doctor
+saltcorn-project-sync check-live --adapter command
 saltcorn-project-sync restore --deployment last
 saltcorn-project-sync git-status
 ```

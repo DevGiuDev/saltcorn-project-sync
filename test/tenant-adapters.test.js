@@ -6,6 +6,14 @@ test("serializeModel supports to_json getter", () => {
   assert.deepEqual(serializeModel({ get to_json() { return { name: "x" }; } }), { name: "x" });
 });
 
+test("commandAdapter info includes configured Saltcorn version", async () => {
+  const old = process.env.SALTCORN_PROJECT_SYNC_SALTCORN_VERSION;
+  process.env.SALTCORN_PROJECT_SYNC_SALTCORN_VERSION = "1.5.7";
+  assert.equal((await commandAdapter().info()).saltcorn_version, "1.5.7");
+  if (old === undefined) delete process.env.SALTCORN_PROJECT_SYNC_SALTCORN_VERSION;
+  else process.env.SALTCORN_PROJECT_SYNC_SALTCORN_VERSION = old;
+});
+
 test("commandAdapter exposes async methods", async () => {
   const old = process.env.SALTCORN_PROJECT_SYNC_EXPORT_CMD;
   process.env.SALTCORN_PROJECT_SYNC_EXPORT_CMD = "printf '{\"tables\":[]}'";
