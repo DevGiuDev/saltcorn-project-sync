@@ -6,6 +6,7 @@ Endpoints:
 
 - `GET /api/project-sync/info`
 - `GET /api/project-sync/export`
+- `POST /api/project-sync/apply`
 - `POST /api/project-sync/backup`
 - `POST /api/project-sync/restore`
 
@@ -17,6 +18,13 @@ Authorization: Bearer <token>
 
 ## Apply endpoint
 
-A generic apply endpoint is intentionally not exposed by default. Applying a plan to a tenant should remain CLI/planner-driven or be implemented as a carefully reviewed tenant-specific route.
+`POST /api/project-sync/apply` is guarded:
+
+- requires `SALTCORN_PROJECT_SYNC_API_TOKEN` to be configured in the Saltcorn process
+- requires matching `Authorization: Bearer <token>`
+- currently only allows `env=local` or `env=dev`
+- expects a CLI-generated payload containing `desired`, `plan`, `state`, and `env`
+- rejects blocked plans
+- rejects destructive operations unless `allow_destructive=true`
 
 The plugin endpoints use the conservative native adapter internally and are best-effort until validated against the target Saltcorn version.

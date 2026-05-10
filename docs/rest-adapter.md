@@ -28,4 +28,6 @@ SALTCORN_PROJECT_SYNC_INFO_URL=https://example.com/custom/info
 
 Requests include `Authorization: Bearer <SALTCORN_PROJECT_SYNC_API_TOKEN>` when the token is set.
 
+For apply, the token must be configured on both sides: the CLI sends it, and the Saltcorn plugin refuses apply if the Saltcorn process does not have `SALTCORN_PROJECT_SYNC_API_TOKEN` set.
+
 This adapter is useful for CI/CD where the Saltcorn tenant exposes controlled deployment endpoints.

@@ -353,7 +353,7 @@ async function commandApplyLive() {
     process.exit(3);
   }
   const adapterResult = adapter.applyPlan
-    ? await adapter.applyPlan({ desired, actual, plan: result.plan, state: result.state })
+    ? await adapter.applyPlan({ desired, actual, plan: result.plan, state: result.state, env, backup })
     : await adapter.applyProject(result.state);
   appendDeploymentRecord(process.cwd(), {
     env,

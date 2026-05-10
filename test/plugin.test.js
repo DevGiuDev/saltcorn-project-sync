@@ -1,11 +1,12 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { routes, deploymentsTable, authorized, sendPage, sendJson } = require("../lib/plugin");
+const { routes, deploymentsTable, authorized, applyAuthorized, validateApplyPayload, sendPage, sendJson } = require("../lib/plugin");
 
 test("plugin exposes project sync routes", () => {
   assert(routes.some((route) => route.url === "/project-sync"));
   assert(routes.some((route) => route.url === "/project-sync/deployments"));
   assert(routes.some((route) => route.url === "/api/project-sync/export"));
+  assert(routes.some((route) => route.url === "/api/project-sync/apply"));
 });
 
 test("deploymentsTable handles missing log", () => {
@@ -24,6 +25,24 @@ test("sendPage and sendJson write to express response", () => {
   };
   sendJson(jsonRes, { ok: true }, 201);
   assert.deepEqual(calls[1], ["json", 201, { ok: true }]);
+});
+
+test("validateApplyPayload guards REST apply", () => {
+  const result = validateApplyPayload({ env: "prod", desired: {}, plan: { operations: [] } });
+  assert.equal(result.valid, false);
+  assert(result.errors.some((error) => /restricted/.test(error)));
+  const destructive = validateApplyPayload({ env: "dev", desired: {}, plan: { operations: [{ action: "drop_field" }] } });
+  assert.equal(destructive.valid, false);
+});
+
+test("applyAuthorized requires configured bearer token", () => {
+  const old = process.env.SALTCORN_PROJECT_SYNC_API_TOKEN;
+  delete process.env.SALTCORN_PROJECT_SYNC_API_TOKEN;
+  assert.equal(applyAuthorized({ headers: {} }), false);
+  process.env.SALTCORN_PROJECT_SYNC_API_TOKEN = "abc";
+  assert.equal(applyAuthorized({ headers: { authorization: "Bearer abc" } }), true);
+  if (old === undefined) delete process.env.SALTCORN_PROJECT_SYNC_API_TOKEN;
+  else process.env.SALTCORN_PROJECT_SYNC_API_TOKEN = old;
 });
 
 test("authorized checks bearer token when configured", () => {
