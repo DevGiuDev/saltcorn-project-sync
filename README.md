@@ -101,3 +101,4 @@ Direct Saltcorn export/apply is adapter-backed. The included `command` adapter d
 - [Compatibility](docs/compatibility.md)
 - [Rollback](docs/rollback.md)
 - [MVP plan](docs/mvp-plan.md)
+- [Remaining plan](docs/remaining-plan.md)
