@@ -14,3 +14,12 @@ test("commandAdapter exposes async methods", async () => {
   if (old === undefined) delete process.env.SALTCORN_PROJECT_SYNC_EXPORT_CMD;
   else process.env.SALTCORN_PROJECT_SYNC_EXPORT_CMD = old;
 });
+
+test("commandAdapter restore delegates to restore command", async () => {
+  const old = process.env.SALTCORN_PROJECT_SYNC_RESTORE_CMD;
+  process.env.SALTCORN_PROJECT_SYNC_RESTORE_CMD = "cat >/dev/null; printf '{\"restored\":true}'";
+  const result = await commandAdapter().restore({ id: "backup" });
+  assert.deepEqual(result, { restored: true });
+  if (old === undefined) delete process.env.SALTCORN_PROJECT_SYNC_RESTORE_CMD;
+  else process.env.SALTCORN_PROJECT_SYNC_RESTORE_CMD = old;
+});

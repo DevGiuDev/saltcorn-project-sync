@@ -93,4 +93,5 @@ Direct Saltcorn export/apply is adapter-backed. The included `command` adapter d
 - [Native adapter](docs/native-adapter.md)
 - [Reference data](docs/reference-data.md)
 - [CI/CD](docs/ci-cd.md)
+- [Rollback](docs/rollback.md)
 - [MVP plan](docs/mvp-plan.md)

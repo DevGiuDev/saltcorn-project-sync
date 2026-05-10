@@ -12,6 +12,8 @@ saltcorn-project-sync report --env prod --backup --tenant-export tenant.json --o
 saltcorn-project-sync apply-file --env dev --tenant-export tenant.json --out applied.json
 saltcorn-project-sync backup --env prod
 saltcorn-project-sync record-deployment --env prod --status success
+saltcorn-project-sync doctor
+saltcorn-project-sync restore --deployment last
 saltcorn-project-sync git-status
 ```
 

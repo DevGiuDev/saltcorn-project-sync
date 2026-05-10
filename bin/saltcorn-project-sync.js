@@ -12,7 +12,7 @@ const { loadProjectState } = require("../lib/project-state");
 const { applyProject } = require("../lib/apply-engine");
 const { writeProjectExport } = require("../lib/export-writer");
 const { createBackupRecord, currentGitCommit } = require("../lib/backup");
-const { appendDeploymentRecord } = require("../lib/deployments");
+const { appendDeploymentRecord, findDeploymentRecord } = require("../lib/deployments");
 const { getTenantAdapter } = require("../lib/tenant-adapters");
 const { analyzeDependencies } = require("../lib/dependencies");
 const { writeReferenceTable } = require("../lib/reference-data");
@@ -33,12 +33,14 @@ Usage:
   saltcorn-project-sync apply-file [--env ENV] [--backup] --tenant-export FILE --out FILE
   saltcorn-project-sync backup [--env ENV] [--source FILE]
   saltcorn-project-sync record-deployment --env ENV --status STATUS
+  saltcorn-project-sync doctor
   saltcorn-project-sync git-status
   saltcorn-project-sync git-commit -m MESSAGE
   saltcorn-project-sync git-pull
   saltcorn-project-sync git-push
   saltcorn-project-sync export [--adapter command|native] --out DIR
   saltcorn-project-sync apply [--adapter command|native] [--env ENV]
+  saltcorn-project-sync restore [--adapter command|native] [--deployment ID|last]
 
 Live export/apply is adapter-backed. Use 'command' for wrappers or 'native' inside a Saltcorn runtime with @saltcorn/data available.
 `);
@@ -222,6 +224,31 @@ function commandRecordDeployment() {
   process.stdout.write(canonicalStringify(record));
 }
 
+function commandDoctor() {
+  const checks = [];
+  const validation = (() => {
+    try {
+      return validateProject(process.cwd(), loadManifest(), loadChangeIntents());
+    } catch (err) {
+      return { valid: false, errors: [err.message], warnings: [] };
+    }
+  })();
+  checks.push({ name: "project validation", ok: validation.valid, errors: validation.errors, warnings: validation.warnings });
+  try {
+    execFileSync("git", ["rev-parse", "--is-inside-work-tree"], { stdio: "ignore" });
+    checks.push({ name: "git repository", ok: true });
+  } catch (err) {
+    checks.push({ name: "git repository", ok: false, errors: ["not inside a Git repository"] });
+  }
+  try {
+    const status = execFileSync("git", ["status", "--short"], { encoding: "utf8" });
+    checks.push({ name: "git clean", ok: status.trim().length === 0, warnings: status.trim() ? ["working tree has changes"] : [] });
+  } catch (_err) {
+    // already reported above
+  }
+  process.stdout.write(canonicalStringify({ ok: checks.every((check) => check.ok), checks }));
+}
+
 function commandGitStatus() {
   const out = execFileSync("git", ["status", "--short"], { encoding: "utf8" });
   process.stdout.write(out || "clean\n");
@@ -250,6 +277,24 @@ async function commandExportLive() {
   const written = writeProjectExport(outDir, exported);
   console.log(`Exported ${written.length} files`);
   for (const file of written) console.log(path.relative(outDir, file));
+}
+
+async function commandRestoreLive() {
+  const adapter = getTenantAdapter(arg("--adapter", process.env.SALTCORN_PROJECT_SYNC_ADAPTER || "command"));
+  const record = findDeploymentRecord(process.cwd(), arg("--deployment", "last"));
+  if (!record) throw new Error("deployment record not found");
+  const backup = record.backup || record.backup_result || record.backup_metadata;
+  if (!backup) throw new Error(`deployment ${record.id} has no backup metadata`);
+  if (!adapter.restore) throw new Error(`adapter ${adapter.name || "<unknown>"} does not support restore`);
+  const result = await adapter.restore(backup);
+  appendDeploymentRecord(process.cwd(), {
+    env: record.env,
+    status: "restored-live",
+    restored_from: record.id,
+    commit: currentGitCommit(),
+    restore_result: result,
+  });
+  process.stdout.write(canonicalStringify({ restored_from: record.id, result }));
 }
 
 async function commandApplyLive() {
@@ -298,12 +343,14 @@ async function main() {
   else if (cmd === "apply-file") commandApplyFile();
   else if (cmd === "backup") commandBackup();
   else if (cmd === "record-deployment") commandRecordDeployment();
+  else if (cmd === "doctor") commandDoctor();
   else if (cmd === "git-status") commandGitStatus();
   else if (cmd === "git-commit") commandGitCommit();
   else if (cmd === "git-pull") commandGitPull();
   else if (cmd === "git-push") commandGitPush();
   else if (cmd === "export") await commandExportLive();
   else if (cmd === "apply") await commandApplyLive();
+  else if (cmd === "restore") await commandRestoreLive();
   else {
     usage();
     process.exit(1);
