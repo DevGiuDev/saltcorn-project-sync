@@ -18,7 +18,9 @@ Defines identity, Saltcorn compatibility, and the objects included in the app.
     "views": [],
     "pages": [],
     "triggers": [],
-    "roles": []
+    "roles": [],
+    "menu": [],
+    "settings": []
   }
 }
 ```

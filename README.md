@@ -27,6 +27,7 @@ Versioned objects:
 - Triggers
 - Required plugins
 - Basic roles
+- Menu/settings files when explicitly exported
 - Project manifest
 
 Initial compatibility can use Saltcorn packs/snapshots as source material, then normalize to deterministic JSON.

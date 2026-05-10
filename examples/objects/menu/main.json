@@ -1,0 +1,9 @@
+{
+  "items": [
+    {
+      "label": "Invoices",
+      "page_name": "invoices"
+    }
+  ],
+  "name": "main"
+}
