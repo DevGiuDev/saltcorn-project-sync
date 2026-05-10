@@ -1,0 +1,25 @@
+{
+  "excluded": {
+    "logs": true,
+    "secrets": true,
+    "sessions": true,
+    "transactional_data": true,
+    "users": true
+  },
+  "format_version": 1,
+  "name": "Mi instancia local",
+  "objects": {
+    "menu": [],
+    "pages": [],
+    "roles": [],
+    "settings": [],
+    "tables": [],
+    "triggers": [],
+    "views": []
+  },
+  "saltcorn": {
+    "min_version": null,
+    "tested_versions": []
+  },
+  "slug": "mi-instancia-local"
+}

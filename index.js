@@ -14,5 +14,5 @@ module.exports = {
   description:
     "Git-backed Saltcorn app versioning with deterministic exports and safe deployment planning.",
   configuration_workflow: () => pluginConfigFields(),
-  routes,
+  routes: () => routes,
 };
