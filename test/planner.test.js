@@ -27,3 +27,20 @@ test("rename intent enables explicit rename operation", () => {
   });
   assert(plan.operations.some((op) => op.action === "rename_field" && op.from === "old_status"));
 });
+
+test("field type changes are blocked without alter intent", () => {
+  const plan = planTables({
+    desiredTables: [{ name: "invoices", fields: [{ name: "total", type: "Integer" }] }],
+    actualTables: [{ name: "invoices", fields: [{ name: "total", type: "Float" }] }],
+  });
+  assert.equal(plan.blocked[0].code, "field_type_change_requires_intent");
+});
+
+test("alter_field_type intent enables explicit type change", () => {
+  const plan = planTables({
+    desiredTables: [{ name: "invoices", fields: [{ name: "total", type: "Integer" }] }],
+    actualTables: [{ name: "invoices", fields: [{ name: "total", type: "Float" }] }],
+    intents: [{ id: "alter", type: "alter_field_type", table: "invoices", field: "total", from: "Float", to: "Integer", reason: "test" }],
+  });
+  assert.equal(plan.operations[0].action, "alter_field_type");
+});
