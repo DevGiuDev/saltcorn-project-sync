@@ -10,8 +10,9 @@ test("normalizePack extracts tables and strips tenant-local numeric ids", () => 
 });
 
 test("normalizePack redacts likely secrets", () => {
-  const out = normalizePack({ plugins: [{ name: "x", api_key: "secret-value" }] });
+  const out = normalizePack({ plugins: [{ name: "x", api_key: "secret-value", bearer_auth: "bearer-value" }] });
   assert.equal(out.plugins[0].api_key, "__REDACTED__");
+  assert.equal(out.plugins[0].bearer_auth, "__REDACTED__");
 });
 
 test("normalizePack includes menu and settings", () => {
