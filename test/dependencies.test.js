@@ -18,3 +18,11 @@ test("analyzeDependencies accepts present referenced tables", () => {
   });
   assert.equal(result.missing.length, 0);
 });
+
+test("analyzeDependencies scans nested named references", () => {
+  const result = analyzeDependencies({
+    tables: [{ name: "invoices", fields: [] }],
+    pages: [{ name: "home", configuration: { widgets: [{ table_name: "missing_table" }] } }],
+  });
+  assert(result.missing.some((dep) => dep.missing.name === "missing_table"));
+});

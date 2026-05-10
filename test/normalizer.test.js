@@ -13,3 +13,11 @@ test("normalizePack redacts likely secrets", () => {
   const out = normalizePack({ plugins: [{ name: "x", api_key: "secret-value" }] });
   assert.equal(out.plugins[0].api_key, "__REDACTED__");
 });
+
+test("normalizePack strips nested numeric tenant-local ids and volatile timestamps", () => {
+  const out = normalizePack({ views: [{ id: 2, name: "v", table_id: 3, updated_at: "now", configuration: { field_id: 9 } }] });
+  assert.equal(out.views[0].id, undefined);
+  assert.equal(out.views[0].table_id, undefined);
+  assert.equal(out.views[0].updated_at, undefined);
+  assert.equal(out.views[0].configuration.field_id, undefined);
+});

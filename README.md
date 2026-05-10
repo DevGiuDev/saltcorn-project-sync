@@ -86,6 +86,7 @@ Direct Saltcorn export/apply is adapter-backed. The included `command` adapter d
 
 - [Architecture](docs/architecture.md)
 - [Project format](docs/project-format.md)
+- [Normalization](docs/normalization.md)
 - [Change intents](docs/change-intents.md)
 - [Dangerous changes](docs/dangerous-changes.md)
 - [Safety model](docs/safety-model.md)
