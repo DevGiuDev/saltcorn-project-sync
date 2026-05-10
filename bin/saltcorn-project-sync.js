@@ -375,6 +375,10 @@ async function commandApplyLive() {
         allow_destructive: has("--allow-destructive"),
       })
     : await adapter.applyProject(result.state);
+  if (adapterResult && adapterResult.ok === false) {
+    process.stdout.write(canonicalStringify({ ...result, adapter_result: adapterResult }));
+    process.exit(6);
+  }
   appendDeploymentRecord(process.cwd(), {
     env,
     status: "applied-live",
