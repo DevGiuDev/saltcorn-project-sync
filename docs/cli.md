@@ -15,7 +15,12 @@ saltcorn-project-sync git-status
 
 `import-pack` can ingest a Saltcorn pack/snapshot-like JSON file and write deterministic object files.
 
-`export` and `apply` use the tenant adapter. The initial `command` adapter is configured via environment variables:
+`export` and `apply` use a tenant adapter. Available adapters:
+
+- `command`: delegates to environment-configured commands. This is the safest integration point for existing Saltcorn pack/snapshot tooling.
+- `native` / `saltcorn-native`: uses `@saltcorn/data` models when the CLI runs inside a configured Saltcorn runtime. Native apply currently covers table/field create/update/rename/drop and generic create/update for views/pages/triggers/roles when the installed Saltcorn model exposes matching methods.
+
+The `command` adapter is configured via environment variables:
 
 - `SALTCORN_PROJECT_SYNC_EXPORT_CMD`: prints pack/snapshot-like JSON.
 - `SALTCORN_PROJECT_SYNC_APPLY_CMD`: receives normalized project JSON on stdin.

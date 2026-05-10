@@ -33,10 +33,10 @@ Usage:
   saltcorn-project-sync git-commit -m MESSAGE
   saltcorn-project-sync git-pull
   saltcorn-project-sync git-push
-  saltcorn-project-sync export --out DIR
-  saltcorn-project-sync apply [--env ENV]
+  saltcorn-project-sync export [--adapter command|native] --out DIR
+  saltcorn-project-sync apply [--adapter command|native] [--env ENV]
 
-Direct export/apply against a live Saltcorn tenant is still adapter-backed work in progress.
+Live export/apply is adapter-backed. Use 'command' for wrappers or 'native' inside a Saltcorn runtime with @saltcorn/data available.
 `);
 }
 
@@ -190,9 +190,9 @@ function commandGitPush() {
   execFileSync("git", ["push"], { stdio: "inherit" });
 }
 
-function commandExportLive() {
+async function commandExportLive() {
   const adapter = getTenantAdapter(arg("--adapter", process.env.SALTCORN_PROJECT_SYNC_ADAPTER || "command"));
-  const exported = normalizePack(adapter.exportProject());
+  const exported = normalizePack(await adapter.exportProject());
   const outDir = path.resolve(arg("--out", process.cwd()));
   ensureProjectDirs(outDir);
   const written = writeProjectExport(outDir, exported);
@@ -200,16 +200,16 @@ function commandExportLive() {
   for (const file of written) console.log(path.relative(outDir, file));
 }
 
-function commandApplyLive() {
+async function commandApplyLive() {
   const adapter = getTenantAdapter(arg("--adapter", process.env.SALTCORN_PROJECT_SYNC_ADAPTER || "command"));
   const env = arg("--env", "dev");
   const desired = loadProjectState();
-  const actual = normalizeProjectExport(adapter.exportProject());
+  const actual = normalizeProjectExport(await adapter.exportProject());
   const intents = loadChangeIntents();
   let backup = has("--backup");
   let backupResult = null;
   if (backup || env === "prod" || env === "test") {
-    backupResult = adapter.backup();
+    backupResult = await adapter.backup();
     backup = true;
   }
   const result = applyProject({ desired, actual, intents, env, backup, force: has("--force") });
@@ -217,7 +217,9 @@ function commandApplyLive() {
     process.stdout.write(canonicalStringify(result));
     process.exit(3);
   }
-  const adapterResult = adapter.applyProject(result.state);
+  const adapterResult = adapter.applyPlan
+    ? await adapter.applyPlan({ desired, actual, plan: result.plan, state: result.state })
+    : await adapter.applyProject(result.state);
   appendDeploymentRecord(process.cwd(), {
     env,
     status: "applied-live",
@@ -230,7 +232,7 @@ function commandApplyLive() {
   process.stdout.write(canonicalStringify({ ...result, adapter_result: adapterResult }));
 }
 
-try {
+async function main() {
   const cmd = process.argv[2];
   if (!cmd || has("--help") || has("-h")) usage();
   else if (cmd === "init") commandInit();
@@ -246,13 +248,15 @@ try {
   else if (cmd === "git-commit") commandGitCommit();
   else if (cmd === "git-pull") commandGitPull();
   else if (cmd === "git-push") commandGitPush();
-  else if (cmd === "export") commandExportLive();
-  else if (cmd === "apply") commandApplyLive();
+  else if (cmd === "export") await commandExportLive();
+  else if (cmd === "apply") await commandApplyLive();
   else {
     usage();
     process.exit(1);
   }
-} catch (err) {
+}
+
+main().catch((err) => {
   console.error(err.message);
   process.exit(1);
-}
+});

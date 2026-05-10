@@ -21,6 +21,14 @@
   "license": "MIT",
   "main": "index.js",
   "name": "saltcorn-project-sync",
+  "peerDependencies": {
+    "@saltcorn/data": ">=1.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@saltcorn/data": {
+      "optional": true
+    }
+  },
   "scripts": {
     "format:json": "node scripts/format-json.js",
     "lint": "find index.js bin lib scripts test -name '*.js' -print0 | xargs -0 -n1 node --check",

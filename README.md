@@ -70,7 +70,7 @@ saltcorn-project-sync export --out .
 saltcorn-project-sync apply --env dev
 ```
 
-Direct Saltcorn export/apply is adapter-backed. The included `command` adapter delegates to environment-configured commands, so deployments can integrate with existing Saltcorn pack/snapshot scripts while the native adapter matures.
+Direct Saltcorn export/apply is adapter-backed. The included `command` adapter delegates to environment-configured commands, so deployments can integrate with existing Saltcorn pack/snapshot scripts. A conservative `native` adapter can use `@saltcorn/data` models when running inside a configured Saltcorn runtime.
 
 ## Safety defaults
 
@@ -87,4 +87,5 @@ Direct Saltcorn export/apply is adapter-backed. The included `command` adapter d
 - [Change intents](docs/change-intents.md)
 - [Safety model](docs/safety-model.md)
 - [CLI](docs/cli.md)
+- [Native adapter](docs/native-adapter.md)
 - [MVP plan](docs/mvp-plan.md)
