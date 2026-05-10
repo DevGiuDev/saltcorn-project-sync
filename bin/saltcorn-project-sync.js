@@ -3,9 +3,9 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { execFileSync } = require("node:child_process");
 const { canonicalStringify, parseJson } = require("../lib/canonical-json");
-const { defaultManifest, MANIFEST_FILE, loadManifest, validateManifest } = require("../lib/manifest");
+const { defaultManifest, MANIFEST_FILE, loadManifest } = require("../lib/manifest");
 const { ensureProjectDirs, writeCanonicalJson, readJsonIfExists } = require("../lib/project-io");
-const { loadChangeIntents, validateChangeIntent } = require("../lib/change-intents");
+const { loadChangeIntents } = require("../lib/change-intents");
 const { planProject } = require("../lib/planner");
 const { VERSIONED_KINDS, normalizePack, normalizeProjectExport } = require("../lib/normalizer");
 const { loadProjectState } = require("../lib/project-state");
@@ -15,8 +15,8 @@ const { createBackupRecord, currentGitCommit } = require("../lib/backup");
 const { appendDeploymentRecord } = require("../lib/deployments");
 const { getTenantAdapter } = require("../lib/tenant-adapters");
 const { analyzeDependencies } = require("../lib/dependencies");
-const { loadEnvironment, validateEnvironmentConfig } = require("../lib/environment");
 const { writeReferenceTable } = require("../lib/reference-data");
+const { validateProject } = require("../lib/validator");
 
 function usage() {
   console.log(`Saltcorn Project Sync
@@ -29,6 +29,7 @@ Usage:
   saltcorn-project-sync import-reference --table TABLE --rows FILE [--key KEY]
   saltcorn-project-sync diff --tenant-export FILE
   saltcorn-project-sync plan [--env ENV] [--backup] --tenant-export FILE
+  saltcorn-project-sync report [--env ENV] [--backup] --tenant-export FILE [--out FILE]
   saltcorn-project-sync apply-file [--env ENV] [--backup] --tenant-export FILE --out FILE
   saltcorn-project-sync backup [--env ENV] [--source FILE]
   saltcorn-project-sync record-deployment --env ENV --status STATUS
@@ -77,26 +78,12 @@ function commandInit() {
 }
 
 function commandValidate() {
-  const manifest = loadManifest();
-  const manifestResult = validateManifest(manifest);
-  const intents = loadChangeIntents();
-  const intentErrors = intents.flatMap((intent) => {
-    const res = validateChangeIntent(intent);
-    return res.valid ? [] : res.errors.map((error) => `${intent.id || "<unknown>"}: ${error}`);
-  });
-  const depResult = fs.existsSync(path.join(process.cwd(), "objects")) ? analyzeDependencies(loadProjectState()) : { missing: [] };
-  const depErrors = depResult.missing.map((dep) => `${dep.from.kind}/${dep.from.name} missing dependency ${dep.missing.kind}/${dep.missing.name}`);
-  const envNames = ["local", "dev", "test", "prod"];
-  const envErrors = envNames.flatMap((env) => {
-    const file = path.join(process.cwd(), "environments", `${env}.json`);
-    if (!fs.existsSync(file)) return [];
-    return validateEnvironmentConfig(loadEnvironment(process.cwd(), env)).errors.map((error) => `${env}: ${error}`);
-  });
-  const errors = [...manifestResult.errors, ...intentErrors, ...depErrors, ...envErrors];
-  if (errors.length) {
-    console.error(errors.map((e) => `- ${e}`).join("\n"));
+  const result = validateProject(process.cwd(), loadManifest(), loadChangeIntents());
+  if (result.errors.length) {
+    console.error(result.errors.map((e) => `- ${e}`).join("\n"));
     process.exit(1);
   }
+  if (result.warnings.length) console.warn(result.warnings.map((e) => `- ${e}`).join("\n"));
   console.log("Project is valid");
 }
 
@@ -151,6 +138,50 @@ function commandPlan() {
   const intents = loadChangeIntents();
   const env = arg("--env", "dev");
   process.stdout.write(canonicalStringify(planProject({ desired, actual, intents, env, backup: has("--backup") })));
+}
+
+function markdownReport({ env, plan, validation }) {
+  const lines = [
+    `# Saltcorn Project Sync report`,
+    ``,
+    `- Environment: ${env}`,
+    `- Operations: ${plan.operations.length}`,
+    `- Warnings: ${plan.warnings.length}`,
+    `- Blocked: ${plan.blocked.length}`,
+    `- Backup required: ${plan.backup_required ? "yes" : "no"}`,
+    `- Backup present: ${plan.backup_present ? "yes" : "no"}`,
+    ``,
+    `## Validation`,
+    ``,
+    validation.errors.length ? validation.errors.map((e) => `- ❌ ${e}`).join("\n") : `- ✅ No validation errors`,
+    validation.warnings.length ? validation.warnings.map((e) => `- ⚠️ ${e}`).join("\n") : `- ✅ No validation warnings`,
+    ``,
+    `## Blocked operations`,
+    ``,
+    plan.blocked.length ? plan.blocked.map((b) => `- ❌ ${b.code || "blocked"}: ${b.reason || JSON.stringify(b)}`).join("\n") : `- ✅ None`,
+    ``,
+    `## Warnings`,
+    ``,
+    plan.warnings.length ? plan.warnings.map((w) => `- ⚠️ ${w.type}: ${w.message || ""} ${w.table || ""} ${w.field || ""}`).join("\n") : `- ✅ None`,
+    ``,
+    `## Operations`,
+    ``,
+    plan.operations.length ? plan.operations.map((op) => `- ${op.safe ? "✅" : "⚠️"} ${op.action} ${op.table || op.view || op.page || op.trigger || op.role || ""} ${op.field || op.from || ""}`).join("\n") : `- None`,
+    ``,
+  ];
+  return `${lines.join("\n")}\n`;
+}
+
+function commandReport() {
+  const { desired, actual } = loadDesiredAndActual();
+  const intents = loadChangeIntents();
+  const env = arg("--env", "dev");
+  const plan = planProject({ desired, actual, intents, env, backup: has("--backup") });
+  const validation = validateProject(process.cwd(), loadManifest(), intents);
+  const report = markdownReport({ env, plan, validation });
+  const out = arg("--out");
+  if (out) fs.writeFileSync(path.resolve(out), report);
+  else process.stdout.write(report);
 }
 
 function commandApplyFile() {
@@ -263,6 +294,7 @@ async function main() {
   else if (cmd === "import-reference") commandImportReference();
   else if (cmd === "diff") commandDiff();
   else if (cmd === "plan") commandPlan();
+  else if (cmd === "report") commandReport();
   else if (cmd === "apply-file") commandApplyFile();
   else if (cmd === "backup") commandBackup();
   else if (cmd === "record-deployment") commandRecordDeployment();
