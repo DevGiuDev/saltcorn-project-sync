@@ -1,0 +1,15 @@
+{
+  "key": "code",
+  "mode": "upsert",
+  "rows": [
+    {
+      "code": "ES",
+      "name": "Spain"
+    },
+    {
+      "code": "FR",
+      "name": "France"
+    }
+  ],
+  "table": "countries"
+}

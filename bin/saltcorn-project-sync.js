@@ -15,6 +15,8 @@ const { createBackupRecord, currentGitCommit } = require("../lib/backup");
 const { appendDeploymentRecord } = require("../lib/deployments");
 const { getTenantAdapter } = require("../lib/tenant-adapters");
 const { analyzeDependencies } = require("../lib/dependencies");
+const { loadEnvironment, validateEnvironmentConfig } = require("../lib/environment");
+const { writeReferenceTable } = require("../lib/reference-data");
 
 function usage() {
   console.log(`Saltcorn Project Sync
@@ -24,6 +26,7 @@ Usage:
   saltcorn-project-sync validate
   saltcorn-project-sync deps
   saltcorn-project-sync import-pack --pack FILE
+  saltcorn-project-sync import-reference --table TABLE --rows FILE [--key KEY]
   saltcorn-project-sync diff --tenant-export FILE
   saltcorn-project-sync plan [--env ENV] [--backup] --tenant-export FILE
   saltcorn-project-sync apply-file [--env ENV] [--backup] --tenant-export FILE --out FILE
@@ -83,7 +86,13 @@ function commandValidate() {
   });
   const depResult = fs.existsSync(path.join(process.cwd(), "objects")) ? analyzeDependencies(loadProjectState()) : { missing: [] };
   const depErrors = depResult.missing.map((dep) => `${dep.from.kind}/${dep.from.name} missing dependency ${dep.missing.kind}/${dep.missing.name}`);
-  const errors = [...manifestResult.errors, ...intentErrors, ...depErrors];
+  const envNames = ["local", "dev", "test", "prod"];
+  const envErrors = envNames.flatMap((env) => {
+    const file = path.join(process.cwd(), "environments", `${env}.json`);
+    if (!fs.existsSync(file)) return [];
+    return validateEnvironmentConfig(loadEnvironment(process.cwd(), env)).errors.map((error) => `${env}: ${error}`);
+  });
+  const errors = [...manifestResult.errors, ...intentErrors, ...depErrors, ...envErrors];
   if (errors.length) {
     console.error(errors.map((e) => `- ${e}`).join("\n"));
     process.exit(1);
@@ -109,6 +118,18 @@ function commandImportPack() {
   const written = writeProjectExport(process.cwd(), normalized);
   console.log(`Imported ${written.length} files`);
   for (const file of written) console.log(path.relative(process.cwd(), file));
+}
+
+function commandImportReference() {
+  const table = arg("--table");
+  const rowsFile = arg("--rows");
+  if (!table) throw new Error("--table TABLE is required");
+  if (!rowsFile) throw new Error("--rows FILE is required");
+  const parsed = parseJson(fs.readFileSync(path.resolve(rowsFile), "utf8"), rowsFile);
+  const rows = Array.isArray(parsed) ? parsed : parsed.rows;
+  if (!Array.isArray(rows)) throw new Error("reference rows file must be an array or { rows: [] }");
+  const file = writeReferenceTable(process.cwd(), table, rows, { key: arg("--key", "id") });
+  console.log(path.relative(process.cwd(), file));
 }
 
 function commandDeps() {
@@ -239,6 +260,7 @@ async function main() {
   else if (cmd === "validate") commandValidate();
   else if (cmd === "deps") commandDeps();
   else if (cmd === "import-pack") commandImportPack();
+  else if (cmd === "import-reference") commandImportReference();
   else if (cmd === "diff") commandDiff();
   else if (cmd === "plan") commandPlan();
   else if (cmd === "apply-file") commandApplyFile();

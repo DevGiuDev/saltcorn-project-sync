@@ -5,6 +5,7 @@ saltcorn-project-sync init --git
 saltcorn-project-sync validate
 saltcorn-project-sync deps
 saltcorn-project-sync import-pack --pack saltcorn-pack.json
+saltcorn-project-sync import-reference --table countries --key code --rows countries.json
 saltcorn-project-sync diff --tenant-export tenant.json
 saltcorn-project-sync plan --env prod --backup --tenant-export tenant.json
 saltcorn-project-sync apply-file --env dev --tenant-export tenant.json --out applied.json
