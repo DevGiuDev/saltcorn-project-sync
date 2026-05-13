@@ -1,4 +1,5 @@
 const { pluginConfigFields, routes } = require("./lib/plugin");
+const projectSyncConsole = require("./viewtemplates/project-sync-console");
 
 /**
  * Saltcorn plugin entrypoint.
@@ -14,5 +15,6 @@ module.exports = {
   description:
     "Git-backed Saltcorn app versioning with deterministic exports and safe deployment planning.",
   configuration_workflow: () => pluginConfigFields(),
+  viewtemplates: [projectSyncConsole],
   routes: () => routes,
 };
