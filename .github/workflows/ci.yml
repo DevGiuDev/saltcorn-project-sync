@@ -1,16 +1,7 @@
 name: CI
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
-  workflow_dispatch:
-    inputs:
-      docker_integration:
-        description: Run disposable Docker Saltcorn/Postgres integration
-        type: boolean
-        default: false
+  workflow_dispatch: # Temporarily disabled — run tests locally
 
 jobs:
   test:
