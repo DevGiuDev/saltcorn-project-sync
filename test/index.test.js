@@ -9,6 +9,7 @@ test("Saltcorn entrypoint exposes config-aware routes function", () => {
 });
 
 test("Saltcorn entrypoint exports Project Sync viewtemplate", () => {
-  assert.ok(Array.isArray(plugin.viewtemplates));
-  assert(plugin.viewtemplates.some((vt) => vt.name === "ProjectSyncConsole"));
+  const vts = typeof plugin.viewtemplates === "function" ? plugin.viewtemplates({}) : plugin.viewtemplates;
+  assert.ok(Array.isArray(vts));
+  assert(vts.some((vt) => vt.name === "ProjectSyncConsole"));
 });

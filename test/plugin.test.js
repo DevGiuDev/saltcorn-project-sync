@@ -29,14 +29,14 @@ test("status and plan preview render safe UI summaries", () => {
     exported: { tables: [{ name: "t" }], plugins: [] },
     projectRoot: "/srv/project",
   });
-  assert.match(status, /Project status/);
-  assert.match(status, /Live object counts/);
+  assert.match(status, /Project Status/);
+  assert.match(status, /Live Object Counts/);
 
   const preview = renderPlanPreview({
     projectRoot: "/srv/project",
     plan: { operations: [{ action: "create_table", table: "customers", safe: true }], warnings: [], blocked: [], backup_required: false },
   });
-  assert.match(preview, /Plan preview/);
+  assert.match(preview, /Plan Preview/);
   assert.match(preview, /create_table/);
 });
 
@@ -46,7 +46,7 @@ test("live diff renders drift and preserves orphan wording", () => {
     { tables: [{ name: "clients", fields: [{ name: "legacy" }] }], plugins: [{ name: "legacy-plugin" }] }
   );
   const html = renderLiveDiff({ projectRoot: "/srv/project", diff });
-  assert.match(html, /Live diff/);
+  assert.match(html, /Live Diff/);
   assert.match(html, /customers/);
   assert.match(html, /clients/);
   assert.match(html, /preserved by default/);
@@ -55,6 +55,7 @@ test("live diff renders drift and preserves orphan wording", () => {
 
 test("live diff explains missing project root", () => {
   assert.match(renderLiveDiff({ projectRoot: "" }), /SALTCORN_PROJECT_SYNC_PROJECT_ROOT/);
+  assert.match(renderLiveDiff({ projectRoot: "" }), /Live Diff/);
 });
 
 test("approval controls summarize environment gates", () => {
@@ -66,17 +67,20 @@ test("approval controls summarize environment gates", () => {
   assert.equal(approvals.length, 4);
   assert(approvals.some((row) => row.env === "prod" && row.backup_required && row.blocked));
   const html = renderApprovals({ projectRoot: "/srv/project", approvals });
-  assert.match(html, /Approval controls/);
+  assert.match(html, /Approval Controls/);
   assert.match(html, /saltcorn-project-sync apply/);
-  assert.match(html, /prod blockers/);
+  assert.match(html, /Blocker Details/);
+  assert.match(html, /prod/);
 });
 
 test("approval controls explain missing project root", () => {
   assert.match(renderApprovals({ projectRoot: "" }), /SALTCORN_PROJECT_SYNC_PROJECT_ROOT/);
+  assert.match(renderApprovals({ projectRoot: "" }), /Approval Controls/);
 });
 
 test("plan preview explains missing project root", () => {
   assert.match(renderPlanPreview({ projectRoot: "" }), /SALTCORN_PROJECT_SYNC_PROJECT_ROOT/);
+  assert.match(renderPlanPreview({ projectRoot: "" }), /Plan Preview/);
 });
 
 test("deploymentsTable handles missing log", () => {

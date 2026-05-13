@@ -139,6 +139,22 @@ This plan only lists pending work from the original objective. Already implement
 - ✅ DB verification: 118 tables in DB = 88 project tables + 29 `_sc_*` system tables + 1 `users`. No missing, no extra.
 - `/home/devgiu/dev/saltcorn-buyapp` is initialized as a Git-backed project with all object files.
 
+## Next — UI polish
+
+- **Tags/filtros en grids de tablas, vistas, triggers, etc.**
+  Añadir tags cliqueables en las tablas filtrables del Project Detail para poder filtrar por propiedades relevantes: tipo de campo (String, Key, Integer…), viewtemplate, plugin source, auto-detected status, etc. Actualmente solo se filtra por included/excluded.
+
+- **Detalle de la acción de cambio detectada**
+  En el Live Diff y Plan Preview, mostrar qué propiedad concreta cambió en cada diff item. En vez de solo "Updated — Different live shape", indicar: campo nuevo, label cambiado, tipo alterado, atributo modificado, etc. Esto requiere que `diffNamedCollections` / `diffTables` devuelvan un diff semántico (key-value diff) en vez de solo "updated".
+
+- **Documentación del CLI**
+  Crear documentación breve y clara que explique los parámetros del CLI (`export`, `diff`, `plan`, `apply`, `doctor-live`, `preflight`) y cómo usarlos apropiadamente según el entorno (local, dev, staging, prod). Incluir ejemplos de flujos de trabajo reales y las variables de entorno necesarias.
+
+- **Recordatorio: Live Diff vs Plan**
+  - **Live Diff**: compara el estado deseado (archivos en disco/Git) contra el estado actual del tenant (export live). Muestra QUÉ ha cambiado (tablas creadas, campos huérfanos, etc.). Es solo lectura.
+  - **Plan Preview**: toma el diff y lo pasa por el planner con las políticas del entorno (`dev.json`, `prod.json`), generando una lista de OPERACIONES concretas a ejecutar, con warnings, blockers y flags de seguridad. Es lo que el CLI ejecutaría con `apply`.
+  - Resumen: Live Diff = ¿qué difiere? · Plan = ¿qué haríamos al respecto?
+
 ## Next — Menu persistence
 
 - Persist Saltcorn menu structure (`menu_items` config) as part of the project export.

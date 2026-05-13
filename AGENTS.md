@@ -8,6 +8,10 @@ Guidance for coding agents working on this repository.
 
 Core safety rule: **absence from Git is never an implicit destructive operation**. Missing fields/tables/etc. must be reported as drift/orphaned unless an explicit change intent authorizes destructive action.
 
+## Development workflow
+
+The plugin is installed in the Saltcorn tenant as a **local plugin pointing directly at this folder** (`/home/devgiu/dev/saltcorn-project-sync`). Saltcorn's hot-reload detects file changes and restarts the server automatically. **Do not run `install-plugin` after editing** — just save files and let the server pick up changes.
+
 ## Commands
 
 - `npm test` — run Node test suite.
