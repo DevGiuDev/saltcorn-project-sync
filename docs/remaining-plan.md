@@ -138,3 +138,15 @@ This plan only lists pending work from the original objective. Already implement
 - ✅ Diff clean: comparableField() strips auto-generated noise before comparison.
 - ✅ DB verification: 118 tables in DB = 88 project tables + 29 `_sc_*` system tables + 1 `users`. No missing, no extra.
 - `/home/devgiu/dev/saltcorn-buyapp` is initialized as a Git-backed project with all object files.
+
+## Next — Menu persistence
+
+- Persist Saltcorn menu structure (`menu_items` config) as part of the project export.
+- Menu items are stored as a `_sc_config` setting, not as a model — no `Menu` model exists in Saltcorn 1.6.0.
+- Export: read `menu_items` from `_sc_config` and write to `objects/menu/menu_items.json` (or `settings/menu_items.json`).
+- Apply: upsert `menu_items` into `_sc_config` via `getState().setConfig('menu_items', value)`.
+- Diff: compare menu arrays by position/name to detect added/removed/reordered items.
+- Handle subitems (dropdown menus) recursively.
+- Separate project-specific menu items from Saltcorn built-in items (Admin Pages, User Pages) to avoid duplicating system entries on apply.
+- Update `loadProjectState` / `normalizeProjectExport` to include menu items.
+- Add integration test for menu round-trip.
