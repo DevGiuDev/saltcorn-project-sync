@@ -5,6 +5,12 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      docker_integration:
+        description: Run disposable Docker Saltcorn/Postgres integration
+        type: boolean
+        default: false
 
 jobs:
   test:
@@ -20,3 +26,28 @@ jobs:
       - run: npm install --ignore-scripts
       - run: npm test
       - run: npm run lint
+
+  integration:
+    runs-on: ubuntu-latest
+    env:
+      SALTCORN_PROJECT_SYNC_BASE_URL: ${{ vars.SALTCORN_PROJECT_SYNC_BASE_URL }}
+      SALTCORN_PROJECT_SYNC_API_TOKEN: ${{ secrets.SALTCORN_PROJECT_SYNC_API_TOKEN }}
+      SALTCORN_PROJECT_SYNC_ADAPTER: rest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+      - run: npm install --ignore-scripts
+      - run: npm run test:integration
+
+  docker-integration:
+    if: github.event_name == 'workflow_dispatch' && inputs.docker_integration
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+      - run: npm install --ignore-scripts
+      - run: npm run test:integration:docker

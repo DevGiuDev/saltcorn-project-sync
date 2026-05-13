@@ -1,0 +1,50 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${SCPS_POSTGRES_DB:-saltcorn}
+      POSTGRES_USER: ${SCPS_POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${SCPS_POSTGRES_PASSWORD:-postgres}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+    volumes:
+      - scps-postgres-data:/var/lib/postgresql/data
+
+  saltcorn:
+    image: ${SCPS_SALTCORN_IMAGE:-saltcorn/saltcorn:latest}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${SCPS_SALTCORN_PORT:-3333}:3000"
+    environment:
+      DATABASE_URL: postgres://${SCPS_POSTGRES_USER:-postgres}:${SCPS_POSTGRES_PASSWORD:-postgres}@postgres:5432/${SCPS_POSTGRES_DB:-saltcorn}
+      PGHOST: postgres
+      PGPORT: "5432"
+      PGDATABASE: ${SCPS_POSTGRES_DB:-saltcorn}
+      PGUSER: ${SCPS_POSTGRES_USER:-postgres}
+      PGPASSWORD: ${SCPS_POSTGRES_PASSWORD:-postgres}
+      SALTCORN_SESSION_SECRET: ${SCPS_SALTCORN_SESSION_SECRET:-scps-integration-secret}
+      SALTCORN_PROJECT_SYNC_API_TOKEN: ${SALTCORN_PROJECT_SYNC_API_TOKEN:-scps-docker-token}
+      SALTCORN_PROJECT_SYNC_PROJECT_ROOT: ${SALTCORN_PROJECT_SYNC_PROJECT_ROOT:-/project}
+      SALTCORN_PROJECT_SYNC_SALTCORN_VERSION: ${SCPS_SALTCORN_VERSION:-1.6.0-beta}
+      SCPS_RESET_SCHEMA: ${SCPS_RESET_SCHEMA:-1}
+      SCPS_PROJECT_DIR: ${SCPS_PROJECT_DIR:-/project}
+    volumes:
+      - .:/plugin
+      - ${SCPS_PROJECT_HOST_DIR:-/home/devgiu/dev/test-project-sync}:/project
+      - scps-saltcorn-files:/saltcorn-files
+    working_dir: /plugin
+    entrypoint: ["/bin/sh", "/plugin/scripts/docker/saltcorn-entrypoint.sh"]
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3000/project-sync/api/info',{headers:{authorization:'Bearer '+(process.env.SALTCORN_PROJECT_SYNC_API_TOKEN||'')}}).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 5s
+      timeout: 5s
+      retries: 60
+
+volumes:
+  scps-postgres-data:
+  scps-saltcorn-files:

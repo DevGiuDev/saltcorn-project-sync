@@ -40,3 +40,17 @@ test("applyProject can execute explicit rename intent", () => {
   assert.equal(result.applied, true);
   assert.deepEqual(fields, ["status", "total"]);
 });
+
+test("applyProject can execute explicit table rename intent", () => {
+  const result = applyProject({
+    desired: { tables: [{ name: "customers", fields: [{ name: "email", type: "String" }] }] },
+    actual: { tables: [{ name: "clients", fields: [{ name: "email", type: "String" }, { name: "legacy", type: "String" }] }] },
+    env: "prod",
+    backup: true,
+    intents: [{ id: "rename-table", type: "rename_table", from: "clients", to: "customers", reason: "test" }],
+  });
+  assert.equal(result.applied, true);
+  assert.deepEqual(result.state.tables, [
+    { name: "customers", fields: [{ name: "email", type: "String" }, { name: "legacy", type: "String" }] },
+  ]);
+});

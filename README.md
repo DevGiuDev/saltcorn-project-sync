@@ -2,6 +2,8 @@
 
 Git-backed application versioning and safe deployment for Saltcorn tenants.
 
+Supported Saltcorn versions: **1.6.0 and newer**.
+
 > Status: early scaffold / MVP design. The current code defines the project format, canonical JSON tools, diff/planning primitives, CLI skeleton, and Saltcorn plugin entrypoint.
 
 ## Goal
@@ -72,6 +74,7 @@ saltcorn-project-sync apply-file --env dev --tenant-export tenant.json --out app
 saltcorn-project-sync backup --env prod
 saltcorn-project-sync export --out .
 saltcorn-project-sync apply --env dev
+npm run test:integration:docker
 ```
 
 Direct Saltcorn export/apply is adapter-backed. The included `command` adapter delegates to environment-configured commands, so deployments can integrate with existing Saltcorn pack/snapshot scripts. A conservative `native` adapter can use `@saltcorn/data` models when running inside a configured Saltcorn runtime.

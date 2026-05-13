@@ -15,6 +15,7 @@ saltcorn-project-sync apply --adapter rest --env dev --allow-destructive
 saltcorn-project-sync backup --env prod
 saltcorn-project-sync record-deployment --env prod --status success
 saltcorn-project-sync doctor
+saltcorn-project-sync doctor-live --adapter command
 saltcorn-project-sync check-live --adapter command
 saltcorn-project-sync restore --deployment last
 saltcorn-project-sync git-status
@@ -32,7 +33,12 @@ The `command` adapter is configured via environment variables:
 
 - `SALTCORN_PROJECT_SYNC_EXPORT_CMD`: prints pack/snapshot-like JSON.
 - `SALTCORN_PROJECT_SYNC_APPLY_CMD`: receives normalized project JSON on stdin.
-- `SALTCORN_PROJECT_SYNC_BACKUP_CMD`: creates a backup/snapshot and prints metadata JSON.
+- `SALTCORN_PROJECT_SYNC_BACKUP_CMD`: creates a backup/snapshot and prints metadata JSON. `test` and `prod` live apply require non-skipped, verifiable metadata such as `id`, `backup_id`, `snapshot_id`, `path`, `file`, `artifact`, `created_at`, `completed_at`, or `metadata`.
+- `SALTCORN_PROJECT_SYNC_SEQUENCE_CHECK_CMD`: optional `doctor-live` command for Postgres sequence health. It should print JSON; `{ "ok": false }` marks the check failed.
+
+`doctor-live` runs live reachability, adapter capability, Saltcorn version, plugin lock, token/auth, live export, and optional sequence-health checks.
+
+Plugin lock changes are planned from `plugins.lock.json`: missing locked plugins produce `install_plugin`, version/source drift produces `update_plugin`, and extra live plugins are preserved as `orphaned_plugin` warnings unless an explicit `drop_plugin` intent exists.
 
 ## Tenant export shape for current diff/plan prototype
 

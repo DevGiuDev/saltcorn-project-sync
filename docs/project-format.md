@@ -1,46 +1,42 @@
-# Project format
+# Project format fidelity
 
-## `saltcorn.project.json`
+Saltcorn Project Sync exports deterministic JSON under `objects/` plus `plugins.lock.json` and optional reference data.
 
-Defines identity, Saltcorn compatibility, and the objects included in the app.
+## Stable references
 
-```json
-{
-  "format_version": 1,
-  "name": "ERP App",
-  "slug": "erp-app",
-  "saltcorn": {
-    "min_version": "0.0.0",
-    "tested_versions": []
-  },
-  "objects": {
-    "tables": ["invoices"],
-    "views": [],
-    "pages": [],
-    "triggers": [],
-    "roles": [],
-    "menu": [],
-    "settings": []
-  }
-}
-```
+Tenant-local numeric IDs are not stable across Saltcorn tenants. During normalization, known references are resolved to names before IDs are stripped:
 
-## Objects
+- `table_id` -> `table_name`
+- `field_id` -> `field_name`
+- `view_id` -> `view_name`
+- `page_id` -> `page_name`
+- `trigger_id` -> `trigger_name`
+- `role_id` -> `role_name`
+- `plugin_id` -> `plugin_name`
 
-Objects are stored as canonical JSON under `objects/<kind>/<name>.json`.
+Unresolved numeric `*_id` values are removed as tenant-local metadata.
 
-IDs from a source tenant must be normalized to portable names/references before writing.
+## Noise reduction
 
-## Excluded by default
+Normalization removes:
 
-- Users
-- Sessions
-- Logs
-- Transactional ERP data
-- Uploaded user files unless explicitly versioned assets
-- Secrets, API keys, passwords, tokens
-- Environment-specific configuration
+- volatile timestamps such as `created_at`, `updated_at`, `last_modified`, and `nonce`
+- common generated metadata such as `created_by`, `updated_by`, `pack_id`, and `snapshot_id`
+- empty default containers for `attributes`, `configuration`, `options`, `meta`, and `metadata`
+- likely secret values, replaced with `__REDACTED__`
 
-## Environments
+## Menu and settings
 
-`environments/*.json` contains non-secret policy/config overlays. Secrets must come from environment variables or deployment secret stores.
+Menu and settings can be exported by Saltcorn in array or object form. The normalizer accepts both:
+
+- object-shaped menu with `items` becomes a single `main` menu object unless it has an explicit name/key
+- object-shaped settings become one object per setting: `{ name, key, value }`
+
+This representation is intentionally conservative and name-based. More Saltcorn-specific semantic transforms may be added as target versions are validated.
+
+## Current limitations
+
+- References not represented by known `*_id` keys may remain unresolved.
+- Ambiguous field IDs are resolved globally from exported table fields; exports with duplicate field IDs are invalid tenant data.
+- Empty `configuration`/`attributes` objects are treated as default noise. Non-empty values are preserved.
+- Complex plugin-specific view configuration is preserved structurally but not interpreted beyond ID-to-name replacement and secret redaction.

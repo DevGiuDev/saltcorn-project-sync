@@ -5,6 +5,10 @@ The Saltcorn plugin exposes basic REST endpoints intended for the CLI `rest` ada
 Endpoints:
 
 - `GET /project-sync/api/info`
+- `GET /project-sync/api/status`
+- `GET /project-sync/api/live-diff`
+- `GET /project-sync/api/plan-preview`
+- `GET /project-sync/api/approvals`
 - `GET /project-sync/api/export`
 - `POST /project-sync/api/apply`
 - `POST /project-sync/api/backup`
@@ -22,6 +26,18 @@ If `SALTCORN_PROJECT_SYNC_API_TOKEN` is set in the Saltcorn process, requests mu
 ```text
 Authorization: Bearer <token>
 ```
+
+## UI pages
+
+The plugin exposes basic tenant UI pages:
+
+- `/project-sync/status`: live adapter info, object counts, and capabilities.
+- `/project-sync/live-diff`: read-only diff between Git desired state and the live tenant, including orphaned objects preserved by default.
+- `/project-sync/plan-preview`: read-only plan preview against a server-configured project root.
+- `/project-sync/approvals`: environment gate matrix for local/dev/test/prod, including blocker/warning/destructive counts and safe CLI command snippets.
+- `/project-sync/deployments`: deployment history from the project metadata log.
+
+Plan preview only reads project files when `SALTCORN_PROJECT_SYNC_PROJECT_ROOT` is configured in the Saltcorn server process. Git operations remain in the companion CLI.
 
 ## Apply endpoint
 

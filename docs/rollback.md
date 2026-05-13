@@ -6,7 +6,7 @@ Saltcorn Project Sync records deployment metadata under:
 .saltcorn-project-sync/deployments.json
 ```
 
-Each record has a stable ID such as `deploy-000001`.
+Normal deployment records have stable IDs such as `deploy-000001`. Rollback records are written distinctly with IDs such as `rollback-000001`, `kind: "rollback"`, and `rollback_of` pointing to the restored deployment.
 
 ## Restore command
 
@@ -15,7 +15,7 @@ saltcorn-project-sync restore --deployment last
 saltcorn-project-sync restore --deployment deploy-000123
 ```
 
-Restore requires the selected deployment record to contain backup metadata and the active adapter to implement restore.
+Restore requires the selected deployment record to contain backup metadata and the active adapter to implement restore. A successful restore appends a distinct rollback record rather than overwriting the original deployment record.
 
 ## Command adapter
 

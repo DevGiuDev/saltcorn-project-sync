@@ -1,0 +1,7 @@
+{
+  "name": "add-status-field",
+  "steps": [
+    { "action": "ensure_table", "table": "invoices" },
+    { "action": "ensure_field", "table": "invoices", "field": "status", "type": "String" }
+  ]
+}

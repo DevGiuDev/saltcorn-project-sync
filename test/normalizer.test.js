@@ -26,5 +26,44 @@ test("normalizePack strips nested numeric tenant-local ids and volatile timestam
   assert.equal(out.views[0].id, undefined);
   assert.equal(out.views[0].table_id, undefined);
   assert.equal(out.views[0].updated_at, undefined);
-  assert.equal(out.views[0].configuration.field_id, undefined);
+  assert.equal(out.views[0].configuration, undefined);
+});
+
+test("normalizePack resolves tenant-local ids to stable names before stripping", () => {
+  const out = normalizePack({
+    tables: [{ id: 10, name: "invoices", fields: [{ id: 20, name: "customer" }] }],
+    views: [{ id: 30, name: "invoice_list", table_id: 10, configuration: { field_id: 20 } }],
+    triggers: [{ name: "notify", table_id: 10, view_id: 30 }],
+  });
+  assert.equal(out.views[0].table_name, "invoices");
+  assert.equal(out.views[0].configuration.field_name, "customer");
+  assert.equal(out.triggers[0].table_name, "invoices");
+  assert.equal(out.triggers[0].view_name, "invoice_list");
+});
+
+test("normalizePack removes noisy generated metadata and empty defaults", () => {
+  const out = normalizePack({
+    pages: [{ name: "home", created_by: "alice", updated_by_user_id: 42, attributes: {}, configuration: {}, updated_at: "now" }],
+  });
+  assert.deepEqual(out.pages[0], { name: "home" });
+});
+
+test("normalizePack accepts object-shaped menu and settings", () => {
+  const out = normalizePack({
+    menu: { items: [{ label: "Home", page_id: 1 }] },
+    settings: { site_name: "Demo", theme: { value: "dark" } },
+    pages: [{ id: 1, name: "home" }],
+  });
+  assert.equal(out.menu[0].name, "main");
+  assert.equal(out.menu[0].items[0].page_name, "home");
+  assert.deepEqual(out.settings, [
+    { key: "site_name", name: "site_name", value: "Demo" },
+    { key: "theme", name: "theme", value: "dark" },
+  ]);
+});
+
+test("normalizePack names roles by role value instead of local id", () => {
+  const out = normalizePack({ roles: [{ id: 1, role: "admin" }] });
+  assert.equal(out.roles[0].name, "admin");
+  assert.equal(out.roles[0].role, "admin");
 });

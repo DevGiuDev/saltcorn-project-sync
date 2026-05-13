@@ -28,6 +28,26 @@ test("rename intent enables explicit rename operation", () => {
   assert(plan.operations.some((op) => op.action === "rename_field" && op.from === "old_status"));
 });
 
+test("rename_table intent converts orphan/create pair into rename", () => {
+  const plan = planTables({
+    desiredTables: [{ name: "customers", fields: [{ name: "email", type: "String" }] }],
+    actualTables: [{ name: "clients", fields: [{ name: "email", type: "String" }] }],
+    intents: [{ id: "rename-table", type: "rename_table", from: "clients", to: "customers", reason: "test" }],
+  });
+  assert.deepEqual(plan.operations, [{ action: "rename_table", from: "clients", to: "customers", safe: false }]);
+  assert.deepEqual(plan.warnings, []);
+});
+
+test("rename_table intent is ignored when target is not desired", () => {
+  const plan = planTables({
+    desiredTables: [{ name: "customers", fields: [] }],
+    actualTables: [{ name: "clients", fields: [] }],
+    intents: [{ id: "rename-table", type: "rename_table", from: "clients", to: "people", reason: "test" }],
+  });
+  assert(plan.operations.some((op) => op.action === "create_table" && op.table === "customers"));
+  assert.equal(plan.warnings[0].type, "orphaned_table");
+});
+
 test("field type changes are blocked without alter intent", () => {
   const plan = planTables({
     desiredTables: [{ name: "invoices", fields: [{ name: "total", type: "Integer" }] }],

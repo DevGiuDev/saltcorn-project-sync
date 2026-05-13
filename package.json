@@ -32,7 +32,11 @@
   "scripts": {
     "format:json": "node scripts/format-json.js",
     "lint": "find index.js bin lib scripts test -name '*.js' -print0 | xargs -0 -n1 node --check",
-    "test": "node --test"
+    "test": "node --test",
+    "test:integration": "node scripts/integration-smoke.js",
+    "test:integration:docker": "./scripts/integration-docker-run.sh",
+    "test:integration:docker:up": "./scripts/integration-docker-up.sh",
+    "test:integration:docker:down": "./scripts/integration-docker-down.sh"
   },
   "version": "0.1.0"
 }
