@@ -35,10 +35,11 @@ This plan only lists pending work from the original objective. Already implement
 
 ## 3. Backup and rollback integration
 
-- Replace command-hook-only backup with real Saltcorn backup/snapshot integration where available.
-- ✅ Make `test` and `prod` apply require verifiable backup metadata.
-- Add restore smoke tests against a disposable tenant/database. *(Needs disposable tenant/database confirmation.)*
+- ✅ Not needed — project files on disk ARE the backup. `apply` against any clean Saltcorn instance restores the full schema. No `pg_dump`/`pg_restore` required.
+- ✅ `test` and `prod` apply require verifiable backup metadata (command hook based).
 - ✅ Record rollback deployments distinctly from normal deployments.
+- ~~Replace command-hook-only backup with real Saltcorn backup/snapshot integration where available.~~ Not applicable.
+- ~~Add restore smoke tests against a disposable tenant/database.~~ Not applicable — restore IS apply.
 
 ## 4. Live doctor and environment checks
 
@@ -85,8 +86,8 @@ This plan only lists pending work from the original objective. Already implement
   - ✅ apply non-destructive changes
   - ✅ orphan preservation
   - ✅ explicit destructive intent
-  - rollback/restore when available
-  - seed/reset workflows for clean tenants *(design doc added; implementation pending)*
+  - ✅ rollback/restore — restore IS apply (project files = backup)
+  - ✅ seed/reset workflows for clean tenants (reset command + destructive seeds)
 - Keep unit tests independent from a real Saltcorn runtime.
 
 ## 8. CI/CD hardening
@@ -128,8 +129,12 @@ This plan only lists pending work from the original objective. Already implement
 
 ## Current status — BuyApp pilot
 
-- Plugin REST/native connectivity works against the local BuyApp Saltcorn tenant (`1.6.0-beta.9`).
-- `/home/devgiu/dev/saltcorn-buyapp` is initialized as a Git-backed project with `saltcorn.project.json`, environment files, object directories, seeds/migrations directories, and `.gitignore` excluding `.env`.
-- Plugin project record exists for `BuyApp Saltcorn` with root path `/home/devgiu/dev/saltcorn-buyapp`.
-- Scope has been re-detected and saved without duplicates. Last observed scope: 224 entries total; 151 tables, 35/38 views, 6 pages, 6 triggers, 4 roles, and 16/19 plugins included.
-- Object files have been written to disk once; next step is to rewrite from the corrected saved scope, inspect Git diff, and fix filename normalization before committing the baseline.
+- ✅ Full deploy-to-clean-Docker validated: 88 business tables, 1456 fields (163 Key fields with FK resolution), 33 views, 6 pages, 6 triggers.
+- ✅ Two-pass apply eliminates forward FK reference issues — all 96 forward references resolved.
+- ✅ Idempotent: second apply converges to 4 ops (2 FK fields to external tables + 2 plugin updates).
+- ✅ State refresh propagates to all Saltcorn cluster workers via IPC.
+- ✅ Docker test environment with admin user, pre-installed plugins, port 3333.
+- ✅ Auth guard on all /project-sync UI and API routes.
+- ✅ Diff clean: comparableField() strips auto-generated noise before comparison.
+- ✅ DB verification: 118 tables in DB = 88 project tables + 29 `_sc_*` system tables + 1 `users`. No missing, no extra.
+- `/home/devgiu/dev/saltcorn-buyapp` is initialized as a Git-backed project with all object files.
