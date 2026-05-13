@@ -128,9 +128,10 @@ test("native adapter applies generic views/triggers/roles/menu/settings", async 
   assert.deepEqual(updates.map(([kind]) => kind), ["view", "trigger", "role", "menu", "setting"]);
 });
 
-test("native adapter exports menu and settings when models are available", async () => {
+test("native adapter exports menu as empty when no db available", async () => {
   const exported = await nativeSaltcornAdapter(fakeModels({ menu: [{ name: "main" }], settings: [{ name: "site_name" }] })).exportProject();
-  assert.deepEqual(exported.menu, [{ name: "main" }]);
+  // Menu is read from _sc_config, not from Menu model. Without a real DB, menu is empty.
+  assert.deepEqual(exported.menu, []);
   assert.deepEqual(exported.settings, [{ name: "site_name" }]);
 });
 
