@@ -75,6 +75,7 @@ async function run(_tableId, _viewname, _configuration, _state, { req } = {}) {
       <div class="btn-group btn-group-sm">
         <a class="btn btn-primary" href="/project-sync/projects/new"><i class="fas fa-plus me-1"></i>New project</a>
         <a class="btn btn-outline-secondary" href="/project-sync/projects"><i class="fas fa-external-link-alt me-1"></i>Full UI</a>
+        <a class="btn btn-outline-dark" href="/project-sync/settings" title="Plugin settings"><i class="fas fa-cog"></i></a>
       </div>`,
     body: `${statsRow}<div class="row">${projectCards}</div>`,
   });
