@@ -139,21 +139,39 @@ This plan only lists pending work from the original objective. Already implement
 - ✅ DB verification: 118 tables in DB = 88 project tables + 29 `_sc_*` system tables + 1 `users`. No missing, no extra.
 - `/home/devgiu/dev/saltcorn-buyapp` is initialized as a Git-backed project with all object files.
 
-## Next — UI polish
+## Next — Pull/Push con dirección (metadata de sync)
 
-- **Tags/filtros en grids de tablas, vistas, triggers, etc.**
-  Añadir tags cliqueables en las tablas filtrables del Project Detail para poder filtrar por propiedades relevantes: tipo de campo (String, Key, Integer…), viewtemplate, plugin source, auto-detected status, etc. Actualmente solo se filtra por included/excluded.
+### ✅ Hecho
 
-- **Detalle de la acción de cambio detectada**
-  En el Live Diff y Plan Preview, mostrar qué propiedad concreta cambió en cada diff item. En vez de solo "Updated — Different live shape", indicar: campo nuevo, label cambiado, tipo alterado, atributo modificado, etc. Esto requiere que `diffNamedCollections` / `diffTables` devuelvan un diff semántico (key-value diff) en vez de solo "updated".
+- **Metadatos del proyecto en `saltcorn.project.json`**:
+  - `version`: versión manual del proyecto (semver, default `0.1.0`)
+  - `sync.last_sync`: ISO 8601 del último deploy completo
+  - `sync.last_sync_epoch`: ms desde epoch (comparación rápida)
+  - `sync.last_sync_commit`: hash git al momento del sync
+  - `sync.last_sync_branch`: rama git al momento del sync
+- **Detección de dirección automática**:
+  - `computeFileSyncStatus()` compara timestamps de git log de cada archivo contra `last_sync`
+  - Si archivo fue commiteado después del último sync → **push** (disco → live)
+  - Si archivo NO fue commiteado después pero difiere del live → **pull** (live → disco)
+  - Usa `git log -1 --format="%at" -- <file>` (no mtime del filesystem) para que funcione después de `git checkout`
+  - Fallback a mtime si no es un repo git
+- **Panel "Proyecto" en Live Diff**: muestra versión, rama git, commit, dirty status, último sync
+- **Botones Push/Pull contextuales**:
+  - Updated items: botón Push (verde) o Pull (azul) según dirección detectada
+  - Orphaned: siempre Pull
+  - Created: siempre Push
+  - Dropdown por propiedad para ambos
+- **API `POST /api/pull`**: pull selectivo (objeto completo o por propiedad)
+- **API push**: pendiente (placeholder, usa CLI por ahora)
+- **`stampSyncMeta()`**: se invoca en `writeProjectToDir()` para registrar el sync
 
-- **Documentación del CLI**
-  Crear documentación breve y clara que explique los parámetros del CLI (`export`, `diff`, `plan`, `apply`, `doctor-live`, `preflight`) y cómo usarlos apropiadamente según el entorno (local, dev, staging, prod). Incluir ejemplos de flujos de trabajo reales y las variables de entorno necesarias.
+### Pendiente
 
-- **Recordatorio: Live Diff vs Plan**
-  - **Live Diff**: compara el estado deseado (archivos en disco/Git) contra el estado actual del tenant (export live). Muestra QUÉ ha cambiado (tablas creadas, campos huérfanos, etc.). Es solo lectura.
-  - **Plan Preview**: toma el diff y lo pasa por el planner con las políticas del entorno (`dev.json`, `prod.json`), generando una lista de OPERACIONES concretas a ejecutar, con warnings, blockers y flags de seguridad. Es lo que el CLI ejecutaría con `apply`.
-  - Resumen: Live Diff = ¿qué difiere? · Plan = ¿qué haríamos al respecto?
+- **API `POST /api/push`**: push de un solo objeto del disco al tenant live
+- **Pull de fields individuales** (requiere buscar dentro del archivo de tabla)
+- **Workflow de cambio de ramas**: cada rama tiene su propio `sync.last_sync` en el manifest
+- **CLI `stamp-sync`**: comando para marcar manualmente el sync timestamp
+- **Version bump**: `scps version bump [major|minor|patch]`
 
 ## Next — Menu persistence
 
@@ -166,3 +184,6 @@ This plan only lists pending work from the original objective. Already implement
 - Separate project-specific menu items from Saltcorn built-in items (Admin Pages, User Pages) to avoid duplicating system entries on apply.
 - Update `loadProjectState` / `normalizeProjectExport` to include menu items.
 - Add integration test for menu round-trip.
+- Grid pagination in tables/views in Project especification.
+- Basic git integration.
+- Deploy from cli will push all files in the repository?

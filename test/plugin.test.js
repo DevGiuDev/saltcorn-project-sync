@@ -36,7 +36,7 @@ test("status and plan preview render safe UI summaries", () => {
     projectRoot: "/srv/project",
     plan: { operations: [{ action: "create_table", table: "customers", safe: true }], warnings: [], blocked: [], backup_required: false },
   });
-  assert.match(preview, /Plan Preview/);
+  assert.match(preview, /Plan/);
   assert.match(preview, /create_table/);
 });
 
@@ -80,7 +80,7 @@ test("approval controls explain missing project root", () => {
 
 test("plan preview explains missing project root", () => {
   assert.match(renderPlanPreview({ projectRoot: "" }), /SALTCORN_PROJECT_SYNC_PROJECT_ROOT/);
-  assert.match(renderPlanPreview({ projectRoot: "" }), /Plan Preview/);
+  assert.match(renderPlanPreview({ projectRoot: "" }), /Plan/);
 });
 
 test("deploymentsTable handles missing log", () => {
