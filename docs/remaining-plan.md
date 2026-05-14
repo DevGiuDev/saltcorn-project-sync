@@ -22,6 +22,16 @@ Pending work not yet implemented. Completed items are in git history.
 - Separate project-specific menu items from Saltcorn built-in items (Admin Pages, User Pages) to avoid duplicating system entries on apply.
 - Add integration test for menu round-trip.
 
+## CI/CD y despliegue
+
+- Revisar planteamiento de integración continua:
+  - Despliegue hacia una instancia Saltcorn existente (diff + apply incremental)
+  - Despliegue a una instancia nueva de cero (full apply desde repo Git)
+  - Flujo CLI vs plugin UI: qué operaciones deben estar en cada uno
+  - Gates de aprobación por entorno (dev → test → prod)
+  - Integración con pipelines existentes (GitHub Actions, etc.)
+  - Automatización de `fetch → diff → plan → apply` desde CI
+
 ## UI / UX improvements
 
 - Grid pagination in tables/views in Project specification.
