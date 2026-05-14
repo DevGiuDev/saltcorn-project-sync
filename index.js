@@ -21,9 +21,13 @@ function branchTenantHeaders() {
     var ex = j.expected || '';
     var ac = j.actual || '';
     var target = j.target_url || '';
+    var sb = j.suggested_branch || '';
     var d = document.createElement('div');
     d.id = 'scps-branch-warning';
     d.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.3);z-index:99998;display:flex;align-items:flex-start;justify-content:center;padding-top:15vh';
+    var fixLine = sb
+      ? '<div style="background:#e8f4fd;border:1px solid #b8daff;border-radius:.25rem;padding:.6rem .75rem;font-size:.8rem;color:#0c5460;margin-bottom:1.25rem">Switch to branch <code style="background:#cce5ff;padding:.1em .4em;border-radius:3px">' + sb + '</code> to match this tenant, or open the correct tenant below.</div>'
+      : '';
     var linkBtn = target
       ? '<a href="' + target + '" style="display:inline-block;padding:.55rem 1.5rem;background:#0d6efd;color:#fff;border-radius:.375rem;text-decoration:none;font-size:.9rem;font-weight:500">Open ' + ex + ' tenant</a>'
       : '<a href="/project-sync/git" style="display:inline-block;padding:.55rem 1.5rem;background:#0d6efd;color:#fff;border-radius:.375rem;text-decoration:none;font-size:.9rem;font-weight:500">Go to Git panel</a>';
@@ -39,9 +43,7 @@ function branchTenantHeaders() {
         '<p style="margin:0 0 .75rem;font-size:.9rem;color:#495057">' +
           'You are on tenant <code style="background:#e9ecef;padding:.1em .4em;border-radius:3px">' + ac + '</code>.' +
         '</p>' +
-        '<div style="background:#fff3cd;border:1px solid #ffc107;border-radius:.25rem;padding:.6rem .75rem;font-size:.8rem;color:#856404;margin-bottom:1.25rem">' +
-          'Changes here will affect the wrong tenant. Switch to the correct one first.' +
-        '</div>' +
+        fixLine +
         '<div style="display:flex;gap:.5rem;justify-content:flex-end">' +
           linkBtn +
         '</div>' +
