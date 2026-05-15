@@ -1,0 +1,15 @@
+{
+  "name": "demo-contacts",
+  "mode": "upsert",
+  "tables": [
+    {
+      "table": "contacts",
+      "key": "email",
+      "rows": [
+        { "name": "Alice", "email": "alice@example.com", "status": "active", "country_code": "ES" },
+        { "name": "Bob", "email": "bob@example.com", "status": "active", "country_code": "FR" },
+        { "name": "Charlie", "email": "charlie@example.com", "status": "pending", "country_code": "DE" }
+      ]
+    }
+  ]
+}

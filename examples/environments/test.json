@@ -1,0 +1,4 @@
+{
+  "destructive_policy": "intent_required",
+  "environment": "test"
+}

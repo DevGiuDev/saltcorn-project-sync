@@ -1,0 +1,42 @@
+{
+  "fields": [
+    {
+      "label": "ID",
+      "name": "id",
+      "primary_key": true,
+      "required": true,
+      "type": "Integer"
+    },
+    {
+      "label": "Name",
+      "name": "name",
+      "required": true,
+      "type": "String"
+    },
+    {
+      "label": "Email",
+      "name": "email",
+      "is_unique": true,
+      "type": "String"
+    },
+    {
+      "label": "Status",
+      "name": "status",
+      "attributes": {
+        "options": "pending,active,inactive"
+      },
+      "type": "String"
+    },
+    {
+      "label": "Country",
+      "name": "country_code",
+      "type": "String"
+    },
+    {
+      "label": "Created",
+      "name": "created_at",
+      "type": "Date"
+    }
+  ],
+  "name": "contacts"
+}

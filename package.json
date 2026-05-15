@@ -36,7 +36,9 @@
     "test:integration": "node scripts/integration-smoke.js",
     "test:integration:docker": "./scripts/integration-docker-run.sh",
     "test:integration:docker:up": "./scripts/integration-docker-up.sh",
-    "test:integration:docker:down": "./scripts/integration-docker-down.sh"
+    "test:integration:docker:down": "./scripts/integration-docker-down.sh",
+    "dry-test": "./scripts/dry-test.sh",
+    "dry-test:plan": "./scripts/dry-test.sh --plan-only"
   },
   "version": "0.1.0"
 }

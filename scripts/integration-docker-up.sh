@@ -6,7 +6,8 @@ PROJECT_NAME=${SCPS_DOCKER_PROJECT:-scps-integration}
 PORT=${SCPS_SALTCORN_PORT:-3333}
 TOKEN=${SALTCORN_PROJECT_SYNC_API_TOKEN:-scps-docker-token}
 BASE_URL=${SALTCORN_PROJECT_SYNC_BASE_URL:-http://127.0.0.1:$PORT}
-PROJECT_HOST_DIR=${SCPS_PROJECT_HOST_DIR:-/home/devgiu/dev/test-project-sync}
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_HOST_DIR=${SCPS_PROJECT_HOST_DIR:-${SCRIPT_DIR}/../examples}
 
 compose() {
   if docker compose version >/dev/null 2>&1; then

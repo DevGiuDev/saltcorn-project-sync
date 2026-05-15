@@ -4,7 +4,8 @@ set -eu
 PORT=${SCPS_SALTCORN_PORT:-3333}
 TOKEN=${SALTCORN_PROJECT_SYNC_API_TOKEN:-scps-docker-token}
 BASE_URL=${SALTCORN_PROJECT_SYNC_BASE_URL:-http://127.0.0.1:$PORT}
-PROJECT_HOST_DIR="${SCPS_PROJECT_HOST_DIR:-/home/devgiu/dev/test-project-sync}"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_HOST_DIR="${SCPS_PROJECT_HOST_DIR:-${SCRIPT_DIR}/../examples}"
 
 cleanup() {
   status=$?
@@ -34,7 +35,7 @@ node -e '
 const { spawnSync } = require("node:child_process");
 const path = require("node:path");
 const fs = require("node:fs");
-const projectDir = process.env.SCPS_PROJECT_HOST_DIR || "/home/devgiu/dev/test-project-sync";
+const projectDir = process.env.SCPS_PROJECT_HOST_DIR || path.resolve(process.cwd(), "examples");
 const env = {
   ...process.env,
   SALTCORN_PROJECT_SYNC_ADAPTER: "rest",
@@ -60,11 +61,12 @@ checks.push({ step: "check-live", ok: run(["check-live", "--adapter", "rest"]).s
 // Doctor-live
 checks.push({ step: "doctor-live", ok: run(["doctor-live", "--adapter", "rest"]).status === 0 });
 
-// Export live state
-checks.push({ step: "export", ok: run(["export", "--adapter", "rest", "--out", projectDir]).status === 0 });
+// Export live state (to a temp dir, not the project itself)
+const exportTmpDir = path.join(projectDir, ".smoke-export");
+checks.push({ step: "export", ok: run(["export", "--adapter", "rest", "--out", exportTmpDir]).status === 0 });
 
 // Diff + plan
-const tenantExport = path.join(projectDir, "tenant-export.json");
+const tenantExport = path.join(exportTmpDir, "tenant-export.json");
 if (fs.existsSync(tenantExport)) {
   checks.push({ step: "diff", ok: run(["diff", "--tenant-export", tenantExport]).status === 0 });
   const planResult = run(["plan", "--env", "dev", "--tenant-export", tenantExport]);

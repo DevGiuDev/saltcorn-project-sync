@@ -1,0 +1,9 @@
+{
+  "from": "subject",
+  "id": "rename-subject-to-title",
+  "reason": "Rename subject field to title for clarity",
+  "table": "messages",
+  "to": "title",
+  "type": "rename_field",
+  "version": "0.2.0"
+}

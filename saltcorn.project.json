@@ -7,23 +7,13 @@
     "users": true
   },
   "format_version": 2,
-  "name": "Example Project",
+  "name": "Test",
   "objects": {
     "menu": [],
     "pages": [],
-    "roles": [
-      "admin",
-      "public",
-      "staff",
-      "user"
-    ],
-    "settings": [
-      "site"
-    ],
-    "tables": [
-      "contacts",
-      "messages"
-    ],
+    "roles": [],
+    "settings": [],
+    "tables": [],
     "triggers": [],
     "views": []
   },
@@ -31,7 +21,7 @@
     "min_version": "1.6.0",
     "tested_versions": []
   },
-  "slug": "example-project",
+  "slug": "test",
   "sync": {
     "last_sync": null,
     "last_sync_commit": null,

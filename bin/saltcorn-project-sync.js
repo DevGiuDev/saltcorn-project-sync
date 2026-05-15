@@ -3,7 +3,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { execFileSync } = require("node:child_process");
 const { canonicalStringify, parseJson } = require("../lib/canonical-json");
-const { defaultManifest, MANIFEST_FILE, loadManifest } = require("../lib/manifest");
+const { defaultManifest, MANIFEST_FILE, loadManifest, bumpPatch, bumpMinor, lastCommittedVersion } = require("../lib/manifest");
 const { ensureProjectDirs, writeCanonicalJson, readJsonIfExists } = require("../lib/project-io");
 const { loadChangeIntents } = require("../lib/change-intents");
 const { planProject } = require("../lib/planner");
@@ -12,7 +12,7 @@ const { loadProjectState } = require("../lib/project-state");
 const { applyProject } = require("../lib/apply-engine");
 const { writeProjectExport } = require("../lib/export-writer");
 const { createBackupRecord, currentGitCommit } = require("../lib/backup");
-const { appendDeploymentRecord, appendRollbackRecord, findDeploymentRecord } = require("../lib/deployments");
+const { appendDeploymentRecord, appendRollbackRecord, findDeploymentRecord, lastAppliedVersion } = require("../lib/deployments");
 const { getTenantAdapter } = require("../lib/tenant-adapters");
 const { analyzeDependencies } = require("../lib/dependencies");
 const { writeReferenceTable } = require("../lib/reference-data");
@@ -461,6 +461,28 @@ function commandGitStatus() {
 function commandGitCommit() {
   const message = arg("-m") || arg("--message");
   if (!message) throw new Error("-m MESSAGE is required");
+
+  // Auto-bump version if user hasn't changed it manually
+  const manifest = loadManifest();
+  const currentVersion = manifest.version || "0.0.0";
+  const committedVersion = lastCommittedVersion();
+
+  if (committedVersion && currentVersion === committedVersion) {
+    // User didn't change version — auto bump
+    const newVersion = bumpPatch(currentVersion);
+    if (newVersion) {
+      manifest.version = newVersion;
+      const manifestPath = path.join(process.cwd(), MANIFEST_FILE);
+      writeCanonicalJson(manifestPath, manifest);
+      console.log(`Auto-bumped version: ${currentVersion} → ${newVersion}`);
+    }
+  } else if (!committedVersion) {
+    // First commit ever — keep current version
+  } else {
+    // User changed version manually — keep it
+    console.log(`Version changed manually: ${committedVersion} → ${currentVersion}`);
+  }
+
   execFileSync("git", ["add", "saltcorn.project.json", "plugins.lock.json", "objects", "changes", "environments", "docs", "README.md"], { stdio: "inherit" });
   execFileSync("git", ["commit", "-m", message], { stdio: "inherit" });
 }
@@ -508,7 +530,12 @@ async function commandApplyLive() {
   const env = arg("--env", "dev");
   const desired = loadProjectState();
   const actual = normalizeProjectExport(await adapter.exportProject());
-  const intents = loadChangeIntents();
+
+  // Version-aware intent filtering: only load intents newer than last applied version
+  const tenantVersion = lastAppliedVersion();
+  const intents = loadChangeIntents(process.cwd(), { sinceVersion: tenantVersion });
+  const projectVersion = (loadManifest() || {}).version || null;
+
   let backup = has("--backup");
   let backupResult = null;
   if (backup || env === "prod" || env === "test") {
@@ -547,6 +574,8 @@ async function commandApplyLive() {
     env,
     status: "applied-live",
     commit: currentGitCommit(),
+    version: projectVersion,
+    previous_version: tenantVersion,
     backup: backupResult,
     adapter_result: adapterResult,
     operations: result.plan.operations.length,

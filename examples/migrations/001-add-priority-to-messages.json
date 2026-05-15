@@ -1,0 +1,7 @@
+{
+  "name": "add-priority-to-messages",
+  "steps": [
+    { "action": "ensure_table", "table": "messages" },
+    { "action": "ensure_field", "table": "messages", "field": "priority", "type": "String" }
+  ]
+}

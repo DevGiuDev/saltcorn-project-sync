@@ -35,7 +35,7 @@ services:
       SCPS_PROJECT_DIR: ${SCPS_PROJECT_DIR:-/project}
     volumes:
       - .:/plugin
-      - ${SCPS_PROJECT_HOST_DIR:-/home/devgiu/dev/test-project-sync}:/project
+      - ${SCPS_PROJECT_HOST_DIR:-./examples}:/project
       - scps-saltcorn-files:/saltcorn-files
     working_dir: /plugin
     entrypoint: ["/bin/sh", "/plugin/scripts/docker/saltcorn-entrypoint.sh"]

@@ -1,0 +1,41 @@
+{
+  "fields": [
+    {
+      "label": "ID",
+      "name": "id",
+      "primary_key": true,
+      "required": true,
+      "type": "Integer"
+    },
+    {
+      "label": "Contact",
+      "name": "contact_id",
+      "type": "Integer"
+    },
+    {
+      "label": "Subject",
+      "name": "subject",
+      "required": true,
+      "type": "String"
+    },
+    {
+      "label": "Message",
+      "name": "message",
+      "type": "String"
+    },
+    {
+      "label": "Priority",
+      "name": "priority",
+      "attributes": {
+        "options": "low,medium,high"
+      },
+      "type": "String"
+    },
+    {
+      "label": "Created",
+      "name": "created_at",
+      "type": "Date"
+    }
+  ],
+  "name": "messages"
+}
