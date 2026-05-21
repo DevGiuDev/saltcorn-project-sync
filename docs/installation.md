@@ -25,6 +25,8 @@ SALTCORN_PROJECT_SYNC_PROJECT_ROOT=/path/to/git/project
 SALTCORN_PROJECT_SYNC_API_TOKEN=dev-token
 ```
 
+The Git panel can also be opened from a specific project that already has `root_path` set, in which case the `SALTCORN_PROJECT_SYNC_PROJECT_ROOT` env var is not required for that project-scoped view.
+
 ## Git install
 
 Until an npm package is published, deploy from a pinned Git commit/tag:

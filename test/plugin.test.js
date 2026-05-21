@@ -53,8 +53,8 @@ test("live diff renders drift and preserves orphan wording", () => {
   assert.match(html, /legacy-plugin/);
 });
 
-test("live diff explains missing project root", () => {
-  assert.match(renderLiveDiff({ projectRoot: "" }), /SALTCORN_PROJECT_SYNC_PROJECT_ROOT/);
+test("live diff explains missing project selection", () => {
+  assert.match(renderLiveDiff({ projectRoot: "" }), /Choose a project first/);
   assert.match(renderLiveDiff({ projectRoot: "" }), /Live Diff/);
 });
 
@@ -73,13 +73,13 @@ test("approval controls summarize environment gates", () => {
   assert.match(html, /prod/);
 });
 
-test("approval controls explain missing project root", () => {
-  assert.match(renderApprovals({ projectRoot: "" }), /SALTCORN_PROJECT_SYNC_PROJECT_ROOT/);
+test("approval controls explain missing project selection", () => {
+  assert.match(renderApprovals({ projectRoot: "" }), /Choose a project first/);
   assert.match(renderApprovals({ projectRoot: "" }), /Approval Controls/);
 });
 
-test("plan preview explains missing project root", () => {
-  assert.match(renderPlanPreview({ projectRoot: "" }), /SALTCORN_PROJECT_SYNC_PROJECT_ROOT/);
+test("plan preview explains missing project selection", () => {
+  assert.match(renderPlanPreview({ projectRoot: "" }), /Choose a project first/);
   assert.match(renderPlanPreview({ projectRoot: "" }), /Plan/);
 });
 

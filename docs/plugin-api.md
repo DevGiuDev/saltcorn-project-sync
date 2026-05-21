@@ -37,7 +37,7 @@ The plugin exposes basic tenant UI pages:
 - `/project-sync/approvals`: environment gate matrix for local/dev/test/prod, including blocker/warning/destructive counts and safe CLI command snippets.
 - `/project-sync/deployments`: deployment history from the project metadata log.
 
-Plan preview only reads project files when `SALTCORN_PROJECT_SYNC_PROJECT_ROOT` is configured in the Saltcorn server process. Git operations remain in the companion CLI.
+Project-scoped Live Diff / Plan Preview / Approvals can be opened from a project that already has `root_path` set. A server-level `SALTCORN_PROJECT_SYNC_PROJECT_ROOT` is only needed for the global fallback view. Git operations remain in the companion CLI.
 
 ## Apply endpoint
 

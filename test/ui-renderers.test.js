@@ -55,9 +55,15 @@ test("project renderers keep card links, forms, and scope action hooks", () => {
     plugins: [],
     menu: [],
   });
+  assert.match(detailHtml, /project-sync\/git\?project_id=7/);
+  assert.match(detailHtml, /project-sync\/live-diff\?project_id=7/);
+  assert.match(detailHtml, /project-sync\/plan-preview\?project_id=7/);
+  assert.match(detailHtml, /project-sync\/approvals\?project_id=7/);
   assert.match(detailHtml, /id="btn-download"/);
   assert.match(detailHtml, /id="btn-write-disk"/);
   assert.match(detailHtml, /id="btn-save-scope"/);
+  assert.match(detailHtml, /id="scope-tabs"/);
+  assert.match(detailHtml, /fa-code-branch/);
   assert.match(detailHtml, /class="badge bg-primary">crm<\/span>/);
   assert.match(detailHtml, /scope-toggle/);
 });
@@ -85,11 +91,16 @@ test("overview and git renderers preserve primary navigation and JS hooks", () =
     log: { commits: [{ hash: "abc123", message: "feat: ui", author: "Dev", date: "2026-05-15" }] },
     remoteUrl: { ok: true, stdout: "origin" },
     branchMap: { "feature/demo": { tenant: "feature_demo" } },
+    projectId: 7,
   });
+  assert.match(gitHtml, /project-sync\/live-diff\?project_id=7/);
+  assert.match(gitHtml, /project-sync\/plan-preview\?project_id=7/);
+  assert.match(gitHtml, /project-sync\/approvals\?project_id=7/);
   assert.match(gitHtml, /id="btn-git-commit"/);
   assert.match(gitHtml, /id="btn-git-pull"/);
   assert.match(gitHtml, /id="btn-create-branch"/);
   assert.match(gitHtml, /class="btn btn-outline-primary btn-sm py-0 px-1 stage-btn"/);
   assert.match(gitHtml, /class="btn btn-outline-secondary btn-sm py-0 px-2 checkout-btn"/);
+  assert.match(gitHtml, /window\.SCPS_GIT_PROJECT_ID = 7/);
   assert.match(gitHtml, /<code>\/srv\/project<\/code>/);
 });
