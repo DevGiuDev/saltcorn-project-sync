@@ -29,15 +29,18 @@ Authorization: Bearer <token>
 
 ## UI pages
 
-The plugin exposes basic tenant UI pages:
+The plugin exposes a project-first UI:
 
-- `/project-sync/status`: live adapter info, object counts, and capabilities.
-- `/project-sync/live-diff`: read-only diff between Git desired state and the live tenant, including orphaned objects preserved by default.
-- `/project-sync/plan-preview`: read-only plan preview against a server-configured project root.
-- `/project-sync/approvals`: environment gate matrix for local/dev/test/prod, including blocker/warning/destructive counts and safe CLI command snippets.
+- `/project-sync/projects`: project list and project creation.
+- `/project-sync/projects/:id`: project scope workspace.
+- `/project-sync/git?project_id=:id`: project-scoped Git view.
+- `/project-sync/live-diff?project_id=:id`: project-scoped diff between files and live tenant.
+- `/project-sync/plan-preview?project_id=:id`: project-scoped plan preview.
+- `/project-sync/approvals?project_id=:id`: project-scoped approval matrix.
+- `/project-sync/settings?project_id=:id`: project-scoped settings and health checks.
 - `/project-sync/deployments`: deployment history from the project metadata log.
 
-Project-scoped Live Diff / Plan Preview / Approvals can be opened from a project that already has `root_path` set. A server-level `SALTCORN_PROJECT_SYNC_PROJECT_ROOT` is only needed for the global fallback view. Git operations remain in the companion CLI.
+`/project-sync`, `/project-sync/status`, and `/project-sync/health` redirect to `Projects` for backward compatibility. Project-scoped views use the selected project's `root_path`; a server-level `SALTCORN_PROJECT_SYNC_PROJECT_ROOT` is only a fallback.
 
 ## Apply endpoint
 

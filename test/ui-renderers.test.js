@@ -7,17 +7,33 @@ const {
   renderProjectForm,
   renderProjectDetail,
 } = require("../lib/plugin/renderers/projects");
-const { renderOverview } = require("../lib/plugin/renderers/overview");
 const { renderGitPage } = require("../lib/plugin/renderers/git");
 
-test("settings renderer keeps helper-driven form controls and ids", () => {
-  const html = renderSettingsPage({ cfg: {}, error: "No root" });
-  assert.match(html, /Plugin Settings/);
-  assert.match(html, /id="setting-project-root"/);
-  assert.match(html, /id="btn-browse-root"/);
-  assert.match(html, /id="btn-save-settings"/);
+test("settings renderer is project-scoped and includes health", () => {
+  const html = renderSettingsPage({
+    project: {
+      id: 7,
+      name: "CRM",
+      slug: "crm",
+      description: "Customer app",
+      min_version: "1.6.0",
+      root_path: "/srv/projects/crm",
+    },
+    error: "No root",
+  });
+  assert.match(html, /CRM settings/);
+  assert.match(html, /project-sync\/settings\?project_id=7/);
+  assert.match(html, /id="project-setting-root-path"/);
+  assert.match(html, /id="btn-save-project-settings"/);
+  assert.match(html, /Health/);
+  assert.match(html, /window\.SCPS_SETTINGS_PROJECT_ID = 7/);
   assert.match(html, /alert-danger/);
-  assert.match(html, /SALTCORN_PROJECT_SYNC_PROJECT_ROOT/);
+});
+
+test("settings renderer asks to choose a project first", () => {
+  const html = renderSettingsPage({ project: null });
+  assert.match(html, /Choose a project first/);
+  assert.match(html, /Open projects/);
 });
 
 test("project renderers keep card links, forms, and scope action hooks", () => {
@@ -59,6 +75,7 @@ test("project renderers keep card links, forms, and scope action hooks", () => {
   assert.match(detailHtml, /project-sync\/live-diff\?project_id=7/);
   assert.match(detailHtml, /project-sync\/plan-preview\?project_id=7/);
   assert.match(detailHtml, /project-sync\/approvals\?project_id=7/);
+  assert.match(detailHtml, /project-sync\/settings\?project_id=7/);
   assert.match(detailHtml, /id="btn-download"/);
   assert.match(detailHtml, /id="btn-write-disk"/);
   assert.match(detailHtml, /id="btn-save-scope"/);
@@ -66,15 +83,10 @@ test("project renderers keep card links, forms, and scope action hooks", () => {
   assert.match(detailHtml, /fa-code-branch/);
   assert.match(detailHtml, /class="badge bg-primary">crm<\/span>/);
   assert.match(detailHtml, /scope-toggle/);
+  assert.match(detailHtml, /scps-col-filter/);
 });
 
-test("overview and git renderers preserve primary navigation and JS hooks", () => {
-  const overviewHtml = renderOverview();
-  assert.match(overviewHtml, /Saltcorn Project Sync/);
-  assert.match(overviewHtml, /Core safety rule/);
-  assert.match(overviewHtml, /title="Plugin settings"/);
-  assert.match(overviewHtml, /Companion CLI/);
-
+test("git renderer preserves project navigation and JS hooks", () => {
   const gitHtml = renderGitPage({
     projectRoot: "/srv/project",
     status: {
@@ -96,6 +108,7 @@ test("overview and git renderers preserve primary navigation and JS hooks", () =
   assert.match(gitHtml, /project-sync\/live-diff\?project_id=7/);
   assert.match(gitHtml, /project-sync\/plan-preview\?project_id=7/);
   assert.match(gitHtml, /project-sync\/approvals\?project_id=7/);
+  assert.match(gitHtml, /project-sync\/settings\?project_id=7/);
   assert.match(gitHtml, /id="btn-git-commit"/);
   assert.match(gitHtml, /id="btn-git-pull"/);
   assert.match(gitHtml, /id="btn-create-branch"/);
@@ -103,4 +116,5 @@ test("overview and git renderers preserve primary navigation and JS hooks", () =
   assert.match(gitHtml, /class="btn btn-outline-secondary btn-sm py-0 px-2 checkout-btn"/);
   assert.match(gitHtml, /window\.SCPS_GIT_PROJECT_ID = 7/);
   assert.match(gitHtml, /<code>\/srv\/project<\/code>/);
+  assert.match(gitHtml, /scps-col-filter/);
 });

@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { routes, deploymentsTable, authorized, applyAuthorized, validateApplyPayload, renderStatus, renderLiveDiff, renderPlanPreview, renderApprovals, summarizeDiff, approvalMatrix, objectCounts, escapeHtml, sendPage, sendJson } = require("../lib/plugin");
+const { routes, deploymentsTable, authorized, applyAuthorized, validateApplyPayload, renderLiveDiff, renderPlanPreview, renderApprovals, summarizeDiff, approvalMatrix, objectCounts, escapeHtml, sendPage, sendJson } = require("../lib/plugin");
 
 test("plugin exposes project sync routes", () => {
   assert(routes.some((route) => route.url === "/project-sync"));
@@ -17,21 +17,9 @@ test("plugin exposes project sync routes", () => {
   assert(routes.some((route) => route.url === "/project-sync/api/apply"));
 });
 
-test("status and plan preview render safe UI summaries", () => {
+test("plan preview renders safe UI summaries", () => {
   assert.equal(escapeHtml("<script>"), "&lt;script&gt;");
   assert.deepEqual(objectCounts({ tables: [{}], views: [{}, {}], plugins: [{}] }).tables, 1);
-  const status = renderStatus({
-    info: {
-      adapter: "native",
-      saltcorn_version: "1.2.3",
-      capabilities: { resources: { tables: { export: true, apply: true, destructive: false } } },
-    },
-    exported: { tables: [{ name: "t" }], plugins: [] },
-    projectRoot: "/srv/project",
-  });
-  assert.match(status, /Project Status/);
-  assert.match(status, /Live Object Counts/);
-
   const preview = renderPlanPreview({
     projectRoot: "/srv/project",
     plan: { operations: [{ action: "create_table", table: "customers", safe: true }], warnings: [], blocked: [], backup_required: false },

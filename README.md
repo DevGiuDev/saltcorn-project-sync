@@ -26,19 +26,18 @@ See [Project format](docs/project-format.md) and [Normalization](docs/normalizat
 
 ## Plugin UI
 
-The plugin exposes a full web UI under `/project-sync` with pages for:
+The plugin exposes a project-first web UI under `/project-sync`:
 
-| Page | Purpose |
+| Area | Purpose |
 |---|---|
-| Overview | Dashboard with branch/tenant status and navigation |
-| Status | Live object counts and adapter capabilities |
-| Live Diff | Bidirectional diff and sync between live tenant and files |
-| Approvals | Environment policy and approval controls |
-| Health | System health checks |
-| Deployments | Deployment history log |
 | Projects | Define and manage project scopes |
-| Git | Stage, commit, push, pull and branch management |
-| Settings | Plugin configuration (project root) |
+| Deployments | Deployment history log |
+| Project → Scope | Choose which Saltcorn objects belong to the project |
+| Project → Git | Stage, commit, push, pull and branch management |
+| Project → Live Diff | Bidirectional diff and sync between live tenant and files |
+| Project → Plan | Read-only plan preview |
+| Project → Approvals | Environment policy and approval controls |
+| Project → Settings | Project metadata, root path, and health checks |
 
 A global branch/tenant guard overlay warns on every Saltcorn page when the current Git branch does not match the active tenant.
 

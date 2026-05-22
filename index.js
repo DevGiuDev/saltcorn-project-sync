@@ -30,7 +30,7 @@ function branchTenantHeaders() {
       : '';
     var linkBtn = target
       ? '<a href="' + target + '" style="display:inline-block;padding:.55rem 1.5rem;background:#0d6efd;color:#fff;border-radius:.375rem;text-decoration:none;font-size:.9rem;font-weight:500">Open ' + ex + ' tenant</a>'
-      : '<a href="/project-sync/git" style="display:inline-block;padding:.55rem 1.5rem;background:#0d6efd;color:#fff;border-radius:.375rem;text-decoration:none;font-size:.9rem;font-weight:500">Go to Git panel</a>';
+      : '<a href="/project-sync/projects" style="display:inline-block;padding:.55rem 1.5rem;background:#0d6efd;color:#fff;border-radius:.375rem;text-decoration:none;font-size:.9rem;font-weight:500">Open projects</a>';
     d.innerHTML =
       '<div style="background:#fff;border:1px solid #dee2e6;border-top:4px solid #f0ad4e;border-radius:.5rem;padding:1.75rem 2rem;max-width:480px;width:90%;box-shadow:0 .75rem 2rem rgba(0,0,0,.2)">' +
         '<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1rem">' +

@@ -4,7 +4,9 @@
     "saltcorn-project-sync": "bin/saltcorn-project-sync.js",
     "sc-project-sync": "bin/saltcorn-project-sync.js"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@saltcorn/markup": ">=1.0.0"
+  },
   "description": "Version and deploy Saltcorn apps as Git-backed projects with safe, deterministic exports.",
   "devDependencies": {},
   "engines": {
