@@ -30,6 +30,10 @@ SALTCORN_PROJECT_SYNC_INFO_URL=https://example.com/custom/info
 
 Requests include `Authorization: Bearer <SALTCORN_PROJECT_SYNC_API_TOKEN>` when the token is set.
 
-For apply, the token must be configured on both sides: the CLI sends it, and the Saltcorn plugin refuses apply if the Saltcorn process does not have `SALTCORN_PROJECT_SYNC_API_TOKEN` set.
+For apply, backup, and restore, the token must be configured on both sides: the CLI sends it, and the Saltcorn plugin refuses these operations if the Saltcorn process does not have `SALTCORN_PROJECT_SYNC_API_TOKEN` set.
+
+REST apply supports `local`, `dev`, `test`, and `prod`. For `test` and `prod`, the CLI first invokes the remote backup endpoint and the apply payload must include non-skipped, verifiable backup metadata. Destructive operations additionally require an explicit change intent in the plan and `--allow-destructive`.
+
+All API endpoints require either a matching Bearer token or a same-origin Saltcorn admin session. Anonymous export/info access is denied even when no API token is configured. Bearer tokens must only be sent over HTTPS outside localhost.
 
 This adapter is useful for CI/CD where the Saltcorn tenant exposes controlled deployment endpoints.

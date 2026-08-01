@@ -102,11 +102,26 @@ test("sendPage and sendJson write to express response", () => {
 });
 
 test("validateApplyPayload guards REST apply", () => {
-  const result = validateApplyPayload({ env: "prod", desired: {}, plan: { operations: [] } });
-  assert.equal(result.valid, false);
-  assert(result.errors.some((error) => /restricted/.test(error)));
+  const missingBackup = validateApplyPayload({ env: "prod", desired: {}, plan: { operations: [] } });
+  assert.equal(missingBackup.valid, false);
+  assert(missingBackup.errors.some((error) => /verifiable backup metadata/.test(error)));
+
+  const backedUp = validateApplyPayload({
+    env: "prod",
+    desired: {},
+    backup: true,
+    backup_metadata: { id: "backup-1", created_at: "2026-01-01T00:00:00Z" },
+    plan: { operations: [] },
+  });
+  assert.equal(backedUp.valid, true);
+
   const destructive = validateApplyPayload({ env: "dev", desired: {}, plan: { operations: [{ action: "drop_field" }] } });
   assert.equal(destructive.valid, false);
+  assert(destructive.errors.some((error) => /allow_destructive/.test(error)));
+
+  const unknown = validateApplyPayload({ env: "qa", desired: {}, plan: { operations: [] } });
+  assert.equal(unknown.valid, false);
+  assert(unknown.errors.some((error) => /unsupported environment/.test(error)));
 });
 
 test("applyAuthorized requires configured bearer token", () => {
@@ -119,11 +134,20 @@ test("applyAuthorized requires configured bearer token", () => {
   else process.env.SALTCORN_PROJECT_SYNC_API_TOKEN = old;
 });
 
-test("authorized checks bearer token when configured", () => {
+test("authorized accepts Bearer or same-origin admin session without exposing anonymous APIs", () => {
   const old = process.env.SALTCORN_PROJECT_SYNC_API_TOKEN;
   process.env.SALTCORN_PROJECT_SYNC_API_TOKEN = "abc";
   assert.equal(authorized({ headers: { authorization: "Bearer abc" } }), true);
   assert.equal(authorized({ headers: { authorization: "Bearer wrong" } }), false);
+  assert.equal(authorized({ method: "GET", user: { role_id: 1 }, headers: {} }), true);
+  assert.equal(authorized({ method: "POST", user: { role_id: 1 }, headers: { host: "example.test", origin: "https://example.test" } }), true);
+  assert.equal(authorized({ method: "POST", user: { role_id: 1 }, headers: { host: "example.test", origin: "https://evil.test" } }), false);
+  assert.equal(applyAuthorized({ method: "POST", user: { role_id: 1 }, headers: { host: "example.test", origin: "https://example.test" } }), false);
+
+  delete process.env.SALTCORN_PROJECT_SYNC_API_TOKEN;
+  assert.equal(authorized({ method: "GET", headers: {} }), false);
+  assert.equal(authorized({ method: "GET", user: { role_id: 1 }, headers: {} }), true);
+
   if (old === undefined) delete process.env.SALTCORN_PROJECT_SYNC_API_TOKEN;
   else process.env.SALTCORN_PROJECT_SYNC_API_TOKEN = old;
 });

@@ -20,7 +20,8 @@ For destructive/ambiguous operations, use a disposable tenant and explicit chang
 
 | Saltcorn version | Node | DB | Export | Plan | Apply safe | Rename | Field type | Ref data | Backup | Restore | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1.6.x | TBD | TBD | TBD | TBD | TBD | TBD | TBD | TBD | hook/native TBD | hook/native TBD | Needs disposable tenant validation |
+| 1.6.1 | 24.16.0 | PostgreSQL 16 | pass | pass | pass | unit only | unit only | pass | external hook gate pass | not tested | Docker clean-install apply and no-op convergence pass |
+| other 1.6.x | TBD | TBD | TBD | TBD | TBD | TBD | TBD | TBD | hook required | hook required | Validate exact target release |
 | 1.7.x+ | TBD | TBD | TBD | TBD | TBD | TBD | TBD | TBD | hook/native TBD | hook/native TBD | Validate per release line |
 
 ## Operation checklist
@@ -28,7 +29,7 @@ For destructive/ambiguous operations, use a disposable tenant and explicit chang
 - tables: create, rename
 - fields: create, update, rename, alter type, drop with intent
 - views/pages/triggers/roles: create, update, rename, drop with intent
-- menu/settings: export/apply only when Saltcorn exposes compatible models
+- menu/settings: export/apply via stable `_sc_config` rows, excluding operational, tenant-local, and secret-like keys
 - plugins: lock install/update/drop intent behavior
 - reference data: upsert without deleting orphan rows
 - backups: verifiable metadata before test/prod apply
@@ -36,4 +37,4 @@ For destructive/ambiguous operations, use a disposable tenant and explicit chang
 
 ## Current status
 
-Unit and adapter-backed fake model tests cover method selection and safety invariants. Real Saltcorn version validation still requires a disposable tenant for each supported release line, starting with 1.6.x.
+Unit and adapter-backed fake model tests cover method selection and safety invariants. The Docker suite validates Saltcorn 1.6.1 with PostgreSQL 16 for clean export/plan/apply, reference-data upsert, settings/menu apply, protected `test` apply, and post-apply convergence. Destructive rename/type/drop and real backup/restore still require disposable target-specific validation.

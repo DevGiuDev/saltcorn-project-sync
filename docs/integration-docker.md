@@ -4,7 +4,7 @@ The Docker integration stack creates a disposable Saltcorn + Postgres environmen
 
 It uses:
 
-- `saltcorn/saltcorn:latest` by default. At the time of implementation this tracks `1.6.0-beta`.
+- `saltcorn/saltcorn:1.6.1` by default, matching the supported Saltcorn line; release validation may override `SCPS_SALTCORN_IMAGE` with another pinned tag or digest.
 - `postgres:16-alpine`.
 - This plugin repo mounted at `/plugin`.
 - The Saltcorn project at `SCPS_PROJECT_HOST_DIR` mounted at `/project`.
@@ -15,13 +15,14 @@ It uses:
 **Phase 1 — Plugin smoke test:**
 - Creates a bare project in `/tmp`.
 - Runs export, check-live, doctor-live, validate, diff, plan, apply-file, and live apply against the clean Saltcorn via REST.
+- Verifies a protected `env=test` apply can cross the REST backup gate using disposable backup metadata supplied by the Docker stack.
 
 **Phase 2 — Project smoke test:**
 - Runs from the actual Saltcorn project directory (`test-project-sync`).
 - Validates the project including seeds and migrations.
 - Exports live state, computes diff and plan.
-- Applies the project against the clean tenant.
-- Verifies post-apply export works.
+- Applies the complete project against the clean tenant and fails if any planned operation is skipped or unsupported.
+- Verifies post-apply export works and a second apply converges to a zero-operation plan.
 - Lists seeds and migrations.
 
 ## Commands
@@ -64,11 +65,12 @@ http://127.0.0.1:3333/project-sync
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `SCPS_SALTCORN_IMAGE` | `saltcorn/saltcorn:latest` | Saltcorn Docker image. |
-| `SCPS_SALTCORN_VERSION` | `1.6.0-beta` | Version reported to compatibility checks. |
+| `SCPS_SALTCORN_IMAGE` | `saltcorn/saltcorn:1.6.1` | Saltcorn Docker image; pin a digest for release validation. |
+| `SCPS_SALTCORN_VERSION` | auto-detected | Optional override for the Saltcorn version reported to compatibility checks. |
 | `SCPS_SALTCORN_PORT` | `3333` | Host port mapped to container port `3000`. |
 | `SALTCORN_PROJECT_SYNC_API_TOKEN` | `scps-docker-token` | Bearer token for plugin REST endpoints. |
-| `SCPS_PROJECT_HOST_DIR` | `/home/devgiu/dev/test-project-sync` | Host path to the Saltcorn project to mount and test. |
+| `SALTCORN_PROJECT_SYNC_BACKUP_CMD` | disposable JSON receipt | Test-only backup hook used to exercise the `test` environment gate; it is not a real backup. |
+| `SCPS_PROJECT_HOST_DIR` | `./examples` | Host path to the Saltcorn project to mount and test. |
 | `SCPS_POSTGRES_USER` | `postgres` | Postgres user. |
 | `SCPS_POSTGRES_PASSWORD` | `postgres` | Postgres password. |
 | `SCPS_POSTGRES_DB` | `saltcorn` | Postgres database name. |
@@ -82,4 +84,4 @@ http://127.0.0.1:3333/project-sync
 - The default stack binds Saltcorn only to `127.0.0.1`.
 - The database volume is removed by default on shutdown.
 - Live apply is enabled by default only for the disposable dev stack.
-- Full project apply may partially fail if the project depends on plugins not available in the base image — this is expected and non-blocking.
+- Full project apply is a hard gate. Missing plugins/types or skipped native operations fail the integration run.

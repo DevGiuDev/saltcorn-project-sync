@@ -10,9 +10,9 @@ Saltcorn Project Sync has two install surfaces:
 Clone the repository and run from source:
 
 ```bash
-git clone https://github.com/your-org/saltcorn-project-sync.git
+git clone https://github.com/DevGiuDev/saltcorn-project-sync.git
 cd saltcorn-project-sync
-npm install --ignore-scripts
+npm ci --ignore-scripts
 node bin/saltcorn-project-sync.js --help
 ```
 
@@ -32,10 +32,10 @@ The Git panel can also be opened from a specific project that already has `root_
 Until an npm package is published, deploy from a pinned Git commit/tag:
 
 ```bash
-git clone https://github.com/your-org/saltcorn-project-sync.git /opt/saltcorn-project-sync
+git clone https://github.com/DevGiuDev/saltcorn-project-sync.git /opt/saltcorn-project-sync
 cd /opt/saltcorn-project-sync
 git checkout <tag-or-commit>
-npm install --omit=dev --ignore-scripts
+npm ci --omit=dev --ignore-scripts
 npm link
 ```
 

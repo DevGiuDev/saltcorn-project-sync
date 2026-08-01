@@ -1,6 +1,5 @@
 {
-  "name": "site",
-  "settings": {
-    "site_name": "Example ERP App"
-  }
+  "key": "site_name",
+  "name": "site_name",
+  "value": "Example ERP App"
 }

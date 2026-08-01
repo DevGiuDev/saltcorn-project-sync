@@ -21,6 +21,15 @@ test("planPlugins installs and updates locked plugins but preserves orphaned plu
   assert.deepEqual(plan.warnings, [{ type: "orphaned_plugin", plugin: "legacy", message: "Preserved by default" }]);
 });
 
+test("planPlugins does not try to install or update bundled plugins", () => {
+  const plan = planPlugins(
+    [{ name: "base", version: null, source: "builtin" }],
+    [{ name: "base", version: "latest", source: "npm" }]
+  );
+  assert.deepEqual(plan.operations, []);
+  assert.deepEqual(plan.warnings, []);
+});
+
 test("planPlugins ignores Saltcorn plugin export noise", () => {
   const plan = planPlugins(
     [{ name: "base", version: "latest", source: "npm" }],

@@ -15,14 +15,17 @@ function withServer(handler) {
 }
 
 test("restAdapter exports project via HTTP", async () => {
-  const { server, url } = await withServer((_req, res) => {
+  let requestUrl = "";
+  const { server, url } = await withServer((req, res) => {
+    requestUrl = req.url;
     res.setHeader("content-type", "application/json");
     res.end(JSON.stringify({ tables: [] }));
   });
   const old = process.env.SALTCORN_PROJECT_SYNC_BASE_URL;
   process.env.SALTCORN_PROJECT_SYNC_BASE_URL = url;
   try {
-    assert.deepEqual(await restAdapter().exportProject(), { tables: [] });
+    assert.deepEqual(await restAdapter().exportProject({ referenceTables: [{ table: "countries" }] }), { tables: [] });
+    assert.match(requestUrl, /reference_tables=countries/);
   } finally {
     server.close();
     if (old === undefined) delete process.env.SALTCORN_PROJECT_SYNC_BASE_URL;

@@ -11,7 +11,7 @@ const { VERSIONED_KINDS, normalizePack, normalizeProjectExport } = require("../l
 const { loadProjectState } = require("../lib/project-state");
 const { applyProject } = require("../lib/apply-engine");
 const { writeProjectExport } = require("../lib/export-writer");
-const { createBackupRecord, currentGitCommit } = require("../lib/backup");
+const { createBackupRecord, currentGitCommit, isVerifiableBackupMetadata } = require("../lib/backup");
 const { appendDeploymentRecord, appendRollbackRecord, findDeploymentRecord, lastAppliedVersion } = require("../lib/deployments");
 const { getTenantAdapter } = require("../lib/tenant-adapters");
 const { analyzeDependencies } = require("../lib/dependencies");
@@ -427,21 +427,6 @@ function commandDoctor() {
   process.stdout.write(canonicalStringify({ ok: checks.every((check) => check.ok), checks }));
 }
 
-function isVerifiableBackupMetadata(result) {
-  if (!result || result.ok === false || result.skipped) return false;
-  return Boolean(
-    result.id ||
-      result.backup_id ||
-      result.snapshot_id ||
-      result.path ||
-      result.file ||
-      result.artifact ||
-      result.created_at ||
-      result.completed_at ||
-      result.metadata
-  );
-}
-
 function commandCheckSequences() {
   const result = checkSequences({ tableLike: arg("--table-like", process.env.SALTCORN_PROJECT_SYNC_SEQUENCE_TABLE_LIKE || "\\_sc\\_%") });
   process.stdout.write(canonicalStringify(result));
@@ -497,7 +482,13 @@ function commandGitPush() {
 
 async function commandExportLive() {
   const adapter = getTenantAdapter(arg("--adapter", process.env.SALTCORN_PROJECT_SYNC_ADAPTER || "command"));
-  const exported = normalizePack(await adapter.exportProject());
+  let referenceTables = [];
+  try {
+    referenceTables = loadProjectState().reference_data || [];
+  } catch (_err) {
+    // Export also supports an empty/uninitialized destination directory.
+  }
+  const exported = normalizePack(await adapter.exportProject({ referenceTables }));
   const outDir = path.resolve(arg("--out", process.cwd()));
   ensureProjectDirs(outDir);
   const written = writeProjectExport(outDir, exported);
@@ -529,7 +520,7 @@ async function commandApplyLive() {
   const adapter = getTenantAdapter(adapterName);
   const env = arg("--env", "dev");
   const desired = loadProjectState();
-  const actual = normalizeProjectExport(await adapter.exportProject());
+  const actual = normalizeProjectExport(await adapter.exportProject({ referenceTables: desired.reference_data || [] }));
 
   // Version-aware intent filtering: only load intents newer than last applied version
   const tenantVersion = lastAppliedVersion();
@@ -563,6 +554,7 @@ async function commandApplyLive() {
         state: result.state,
         env,
         backup,
+        backup_metadata: backupResult,
         allow_destructive: has("--allow-destructive"),
       })
     : await adapter.applyProject(result.state);

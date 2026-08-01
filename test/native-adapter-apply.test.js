@@ -128,6 +128,59 @@ test("native adapter applies generic views/triggers/roles/menu/settings", async 
   assert.deepEqual(updates.map(([kind]) => kind), ["view", "trigger", "role", "menu", "setting"]);
 });
 
+test("native adapter marks partial applies as failed", async () => {
+  const table = { name: "invoices", fields: [{ name: "legacy" }] };
+  const adapter = nativeSaltcornAdapter(fakeModels({ table }));
+  const result = await adapter.applyPlan({
+    desired: {},
+    plan: { operations: [{ action: "drop_field", table: "invoices", field: "legacy" }] },
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.applied.length, 0);
+  assert.equal(result.skipped.length, 1);
+  assert.match(result.skipped[0].reason, /delete method unavailable/);
+});
+
+test("native adapter reads and writes stable _sc_config settings", async () => {
+  const inserts = [];
+  const updates = [];
+  const configRows = [{ key: "site_name", value: { v: "Old" } }];
+  const models = fakeModels();
+  models.Db = {
+    select: async (table, where = {}) => {
+      if (table === "_sc_fields") return [];
+      if (table !== "_sc_config") return [];
+      if (where.key) return configRows.filter((row) => row.key === where.key);
+      return configRows;
+    },
+    update: async (...args) => updates.push(args),
+    insert: async (...args) => inserts.push(args),
+  };
+  const adapter = nativeSaltcornAdapter(models);
+  const exported = await adapter.exportProject();
+  assert.deepEqual(exported.settings, [{ name: "site_name", key: "site_name", value: "Old" }]);
+
+  const updated = await adapter.applyPlan({
+    desired: { settings: [{ name: "site_name", key: "site_name", value: "New" }] },
+    plan: { operations: [{ action: "update_setting", setting: "site_name" }] },
+  });
+  assert.equal(updated.ok, true);
+  assert.deepEqual(updates, [["_sc_config", { value: JSON.stringify({ v: "New" }) }, { key: "site_name" }]]);
+
+  const created = await adapter.applyPlan({
+    desired: { settings: [{ name: "new_setting", key: "new_setting", value: true }] },
+    plan: { operations: [{ action: "create_setting", setting: "new_setting" }] },
+  });
+  assert.equal(created.ok, true);
+  assert.deepEqual(inserts, [["_sc_config", { key: "new_setting", value: JSON.stringify({ v: true }) }, { pk_name: "key" }]]);
+});
+
+test("native adapter exports requested reference-table rows", async () => {
+  const table = { name: "countries", fields: [], getRows: async () => [{ id: 1, code: "ES", name: "Spain" }] };
+  const exported = await nativeSaltcornAdapter(fakeModels({ table })).exportProject({ referenceTables: [{ table: "countries" }] });
+  assert.deepEqual(exported.reference_data, { countries: [{ id: 1, code: "ES", name: "Spain" }] });
+});
+
 test("native adapter exports menu as empty when no db available", async () => {
   const exported = await nativeSaltcornAdapter(fakeModels({ menu: [{ name: "main" }], settings: [{ name: "site_name" }] })).exportProject();
   // Menu is read from _sc_config, not from Menu model. Without a real DB, menu is empty.

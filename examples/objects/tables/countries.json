@@ -1,0 +1,25 @@
+{
+  "fields": [
+    {
+      "label": "ID",
+      "name": "id",
+      "primary_key": true,
+      "required": true,
+      "type": "Integer"
+    },
+    {
+      "is_unique": true,
+      "label": "Code",
+      "name": "code",
+      "required": true,
+      "type": "String"
+    },
+    {
+      "label": "Name",
+      "name": "name",
+      "required": true,
+      "type": "String"
+    }
+  ],
+  "name": "countries"
+}

@@ -24,6 +24,7 @@ SALTCORN_PROJECT_SYNC_ADAPTER=rest \
 SALTCORN_PROJECT_SYNC_BASE_URL="$BASE_URL" \
 SALTCORN_PROJECT_SYNC_API_TOKEN="$TOKEN" \
 SALTCORN_PROJECT_SYNC_INTEGRATION_APPLY="${SALTCORN_PROJECT_SYNC_INTEGRATION_APPLY:-1}" \
+SALTCORN_PROJECT_SYNC_INTEGRATION_TEST_APPLY="${SALTCORN_PROJECT_SYNC_INTEGRATION_TEST_APPLY:-1}" \
 npm run test:integration
 
 echo ""
@@ -35,6 +36,7 @@ node -e '
 const { spawnSync } = require("node:child_process");
 const path = require("node:path");
 const fs = require("node:fs");
+const os = require("node:os");
 const projectDir = process.env.SCPS_PROJECT_HOST_DIR || path.resolve(process.cwd(), "examples");
 const env = {
   ...process.env,
@@ -50,7 +52,9 @@ function run(args) {
   return r;
 }
 
+async function main() {
 const checks = [];
+const smokeRoot = fs.mkdtempSync(path.join(os.tmpdir(), "scps-project-smoke-"));
 
 // Validate project
 checks.push({ step: "validate", ok: run(["validate"]).status === 0 });
@@ -62,44 +66,64 @@ checks.push({ step: "check-live", ok: run(["check-live", "--adapter", "rest"]).s
 checks.push({ step: "doctor-live", ok: run(["doctor-live", "--adapter", "rest"]).status === 0 });
 
 // Export live state (to a temp dir, not the project itself)
-const exportTmpDir = path.join(projectDir, ".smoke-export");
+const exportTmpDir = path.join(smokeRoot, "live-before");
 checks.push({ step: "export", ok: run(["export", "--adapter", "rest", "--out", exportTmpDir]).status === 0 });
 
-// Diff + plan
+// Capture the raw tenant export. The CLI export command writes project object
+// files, not a monolithic tenant-export.json consumed by diff/plan.
 const tenantExport = path.join(exportTmpDir, "tenant-export.json");
-if (fs.existsSync(tenantExport)) {
-  checks.push({ step: "diff", ok: run(["diff", "--tenant-export", tenantExport]).status === 0 });
-  const planResult = run(["plan", "--env", "dev", "--tenant-export", tenantExport]);
-  checks.push({ step: "plan", ok: planResult.status === 0 });
-  try {
-    const plan = JSON.parse(planResult.stdout);
-    console.log("    plan: " + (plan.operations?.length||0) + " ops, " + (plan.warnings?.length||0) + " warnings, " + (plan.blocked?.length||0) + " blocked");
-  } catch (_e) {}
+const { restAdapter } = require(path.resolve("lib/tenant-adapters.js"));
+const { loadProjectState } = require(path.resolve("lib/project-state.js"));
+const desiredState = loadProjectState(projectDir);
+const liveState = await restAdapter().exportProject({ referenceTables: desiredState.reference_data || [] });
+if (!liveState || liveState.ok === false || liveState.error) {
+  throw new Error("REST export returned an error payload: " + JSON.stringify(liveState));
+}
+fs.writeFileSync(tenantExport, JSON.stringify(liveState));
+
+const diffResult = run(["diff", "--tenant-export", tenantExport]);
+checks.push({ step: "diff", ok: diffResult.status === 0 });
+const planResult = run(["plan", "--env", "dev", "--tenant-export", tenantExport]);
+checks.push({ step: "plan", ok: planResult.status === 0 });
+if (planResult.status === 0) {
+  const plan = JSON.parse(planResult.stdout);
+  console.log("    plan: " + (plan.operations?.length||0) + " ops, " + (plan.warnings?.length||0) + " warnings, " + (plan.blocked?.length||0) + " blocked");
+  if ((plan.blocked || []).length) checks.push({ step: "plan blockers", ok: false });
 }
 
-// Apply: may partially fail if project uses field types from plugins not fully loaded
-// (e.g. UUID fields need uuid-type plugin fully initialized). This is expected
-// in a clean Docker without all production plugins. The test validates the pipeline
-// reaches Saltcorn correctly.
+// A partial/unsupported apply is a failed integration test. Successful HTTP
+// transport alone is not enough to validate a deployable project.
 const applyResult = run(["apply", "--adapter", "rest", "--env", "dev"]);
 const applyOk = applyResult.status === 0;
 checks.push({ step: "apply (full project)", ok: applyOk });
 if (!applyOk) {
-  // Extract the error for reporting
   const output = (applyResult.stdout || "") + (applyResult.stderr || "");
   const errMatch = output.match(/returned \d+: (.*)/);
-  console.log("    apply error: " + (errMatch ? errMatch[1].substring(0, 120) : output.substring(0, 120)));
-  console.log("    This is expected when project depends on plugins/types not available in clean Docker.");
+  console.log("    apply error: " + (errMatch ? errMatch[1].substring(0, 240) : output.substring(0, 240)));
 }
 
-// Post-apply export: even if apply partially failed, export should still work
-checks.push({ step: "post-apply-export", ok: run(["export", "--adapter", "rest", "--out", path.join(projectDir, ".post-apply-export")]).status === 0 });
+// Post-apply export and convergence: applying the same desired state again must
+// produce a no-op plan rather than silently repeating or skipping operations.
+checks.push({ step: "post-apply-export", ok: run(["export", "--adapter", "rest", "--out", path.join(smokeRoot, "live-after")]).status === 0 });
+const convergenceResult = run(["apply", "--adapter", "rest", "--env", "dev"]);
+let convergenceOk = convergenceResult.status === 0;
+if (convergenceOk) {
+  try {
+    const convergence = JSON.parse(convergenceResult.stdout);
+    convergenceOk = (convergence.plan?.operations || []).length === 0;
+    if (!convergenceOk) console.log("    convergence plan still has operations: " + JSON.stringify(convergence.plan.operations));
+  } catch (_e) {
+    convergenceOk = false;
+  }
+}
+checks.push({ step: "post-apply convergence", ok: convergenceOk });
 
 // Seeds and migrations
 checks.push({ step: "list-seeds", ok: run(["list-seeds"]).status === 0 });
 checks.push({ step: "list-migrations", ok: run(["list-migrations"]).status === 0 });
 
-const failed = checks.filter(function(c) { return !c.ok && c.step !== "apply (full project)"; });
+const failed = checks.filter(function(c) { return !c.ok; });
+fs.rmSync(smokeRoot, { recursive: true, force: true });
 console.log("");
 console.log("Project smoke results:");
 for (const c of checks) console.log("  " + (c.ok ? "✅" : "❌") + " " + c.step);
@@ -110,4 +134,10 @@ if (failed.length) {
   const passCount = checks.filter(function(c){return c.ok;}).length;
   console.log("\nAll critical checks passed (" + passCount + "/" + checks.length + " ok)");
 }
+}
+
+main().catch(function(err) {
+  console.error(err && err.stack ? err.stack : err);
+  process.exit(1);
+});
 '

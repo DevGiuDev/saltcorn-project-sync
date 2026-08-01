@@ -9,7 +9,9 @@
   "format_version": 2,
   "name": "Example Project",
   "objects": {
-    "menu": [],
+    "menu": [
+      "menu_items"
+    ],
     "pages": [],
     "roles": [
       "admin",
@@ -18,10 +20,11 @@
       "user"
     ],
     "settings": [
-      "site"
+      "site_name"
     ],
     "tables": [
       "contacts",
+      "countries",
       "messages"
     ],
     "triggers": [],

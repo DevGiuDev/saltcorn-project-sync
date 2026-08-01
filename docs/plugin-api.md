@@ -21,11 +21,16 @@ Legacy GET aliases also exist:
 
 POST endpoints intentionally use `/project-sync/api/*` because Saltcorn core mounts its own `/api` router before plugin routes.
 
-If `SALTCORN_PROJECT_SYNC_API_TOKEN` is set in the Saltcorn process, requests must include:
+API requests require one of:
+
+- a same-origin Saltcorn admin session (plugin UI), or
+- a configured matching Bearer token (CLI/CI).
 
 ```text
 Authorization: Bearer <token>
 ```
+
+Anonymous API access is denied even when `SALTCORN_PROJECT_SYNC_API_TOKEN` is not configured. Session-authenticated browser writes are accepted only when their `Origin`/`Referer` host matches the request host. Apply, backup, restore, and state refresh are Bearer-only operations.
 
 ## UI pages
 
@@ -48,9 +53,11 @@ The plugin exposes a project-first UI:
 
 - requires `SALTCORN_PROJECT_SYNC_API_TOKEN` to be configured in the Saltcorn process
 - requires matching `Authorization: Bearer <token>`
-- currently only allows `env=local` or `env=dev`
+- allows `env=local`, `env=dev`, `env=test`, and `env=prod`
 - expects a CLI-generated payload containing `desired`, `plan`, `state`, and `env`
 - rejects blocked plans
 - rejects destructive operations unless `allow_destructive=true`
+- requires `backup=true` plus verifiable `backup_metadata` for `test` and `prod`
+- reports the apply as failed when the native adapter skips any planned operation
 
 The plugin endpoints use the conservative native adapter internally and are best-effort until validated against the target Saltcorn version.

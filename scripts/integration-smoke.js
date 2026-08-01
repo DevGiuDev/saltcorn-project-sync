@@ -111,6 +111,12 @@ async function main() {
       checks.push(liveApply);
     }
 
+    let protectedApply = { skipped: true, reason: "set SALTCORN_PROJECT_SYNC_INTEGRATION_TEST_APPLY=1 to verify the remote backup gate" };
+    if (process.env.SALTCORN_PROJECT_SYNC_INTEGRATION_TEST_APPLY === "1") {
+      protectedApply = assertStep(run(["apply", "--adapter", adapter, "--env", "test"], { cwd: projectDir }));
+      checks.push(protectedApply);
+    }
+
     printResult({
       ok: true,
       skipped: false,
@@ -119,6 +125,7 @@ async function main() {
       checks: checks.map((step) => ({ command: step.command, ok: step.ok, status: step.status })),
       plan: { operations: (plan.operations || []).length, warnings: (plan.warnings || []).length, blocked: (plan.blocked || []).length },
       live_apply: liveApply.skipped ? liveApply : { command: liveApply.command, ok: liveApply.ok, status: liveApply.status },
+      protected_apply: protectedApply.skipped ? protectedApply : { command: protectedApply.command, ok: protectedApply.ok, status: protectedApply.status },
     });
   } catch (err) {
     printResult({

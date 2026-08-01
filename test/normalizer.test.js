@@ -41,6 +41,19 @@ test("normalizePack resolves tenant-local ids to stable names before stripping",
   assert.equal(out.triggers[0].view_name, "invoice_list");
 });
 
+test("normalizePack removes derived primary-key uniqueness and null field descriptions", () => {
+  const out = normalizePack({
+    tables: [{ name: "countries", fields: [
+      { name: "id", type: "Integer", primary_key: true, is_unique: true, description: null },
+      { name: "code", type: "String", is_unique: true, description: null },
+    ] }],
+  });
+  assert.deepEqual(out.tables[0].fields, [
+    { is_unique: true, name: "code", type: "String" },
+    { name: "id", primary_key: true, type: "Integer" },
+  ]);
+});
+
 test("normalizePack removes noisy generated metadata and empty defaults", () => {
   const out = normalizePack({
     pages: [{ name: "home", created_by: "alice", updated_by_user_id: 42, attributes: {}, configuration: {}, updated_at: "now" }],

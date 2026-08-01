@@ -69,17 +69,17 @@ if [ -f "${PROJECT_DIR}/saltcorn.project.json" ]; then
   # so that viewtemplates (JsCodeView, etc.) are available at render time
   if [ -n "${LOCK_FILE}" ]; then
     log "pre-installing plugins from lock file"
-    node <<"NODE"
+    node - "${LOCK_FILE}" <<"NODE"
 const fs = require('fs');
 try {
-  const lock = JSON.parse(fs.readFileSync(process.argv[1], 'utf8'));
+  const lock = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
   for (const p of (lock.plugins || [])) {
     console.log('  plugin: ' + p.name);
   }
 } catch(e) { console.error('Failed to parse lock file:', e.message); }
 NODE
     # shell loop to install each plugin
-    for pname in $(node -e "const fs=require('fs');try{const l=JSON.parse(fs.readFileSync('${LOCK_FILE}','utf8'));l.plugins?.forEach(p=>console.log(p.name))}catch(e){}" ); do
+    for pname in $(node -e "const fs=require('fs');try{const l=JSON.parse(fs.readFileSync('${LOCK_FILE}','utf8'));l.plugins?.filter(p=>!['builtin','bundled'].includes(p.source)).forEach(p=>console.log(p.name))}catch(e){}" ); do
       log "  installing plugin: ${pname}"
       saltcorn install-plugin -n "${pname}" 2>/dev/null || log "  WARNING: could not install ${pname}"
     done

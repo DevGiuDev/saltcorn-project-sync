@@ -1,9 +1,21 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { serializeModel, commandAdapter, capabilityReport } = require("../lib/tenant-adapters");
+const { serializeModel, configSettingRows, commandAdapter, capabilityReport } = require("../lib/tenant-adapters");
 
 test("serializeModel supports to_json getter", () => {
   assert.deepEqual(serializeModel({ get to_json() { return { name: "x" }; } }), { name: "x" });
+});
+
+test("configSettingRows exports stable non-secret Saltcorn config", () => {
+  assert.deepEqual(
+    configSettingRows([
+      { key: "site_name", value: { v: "Example" } },
+      { key: "menu_items", value: { v: [] } },
+      { key: "api_token", value: { v: "secret" } },
+      { key: "favicon_id", value: {} },
+    ]),
+    [{ name: "site_name", key: "site_name", value: "Example" }]
+  );
 });
 
 test("capabilityReport includes all tracked Saltcorn resource classes", () => {
