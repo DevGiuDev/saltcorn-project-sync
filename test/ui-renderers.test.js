@@ -8,6 +8,7 @@ const {
   renderProjectDetail,
 } = require("../lib/plugin/renderers/projects");
 const { renderGitPage } = require("../lib/plugin/renderers/git");
+const { renderPlanPreview } = require("../lib/plugin/renderers/live-diff");
 
 test("settings renderer is project-scoped and includes health", () => {
   const html = renderSettingsPage({
@@ -84,6 +85,29 @@ test("project renderers keep card links, forms, and scope action hooks", () => {
   assert.match(detailHtml, /class="badge bg-primary">crm<\/span>/);
   assert.match(detailHtml, /scope-toggle/);
   assert.match(detailHtml, /scps-col-filter/);
+});
+
+test("plan renderer shows targets for settings and menu entries", () => {
+  const html = renderPlanPreview({
+    projectRoot: "/srv/project",
+    projectId: 7,
+    plan: {
+      operations: [
+        { action: "create_setting", setting: "site_name", safe: true },
+        { action: "update_menu", menu: "menu_items", safe: true },
+      ],
+      warnings: [
+        { type: "orphaned_setting", setting: "search_use_websearch" },
+        { type: "orphaned_menu", menu: "legacy_menu" },
+      ],
+      blocked: [],
+      backup_required: false,
+    },
+  });
+  assert.match(html, /search_use_websearch/);
+  assert.match(html, /legacy_menu/);
+  assert.match(html, /site_name/);
+  assert.match(html, /menu_items/);
 });
 
 test("git renderer preserves project navigation and JS hooks", () => {
