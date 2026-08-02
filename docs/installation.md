@@ -61,6 +61,26 @@ version-selecting install command is available.
 Restart Saltcorn after the first install or an upgrade so route changes are
 loaded.
 
+### Migrating an existing local plugin install
+
+Saltcorn identifies installations from different sources as separate plugin
+records. Installing from npm does not automatically replace an existing
+`source=local` record with the same name. A safe migration is:
+
+1. Create and verify a database backup.
+2. Confirm the retained local checkout can still be mounted for rollback.
+3. Run `saltcorn install-plugin --npm saltcorn-project-sync`.
+4. Inspect `_sc_plugins` and verify the new npm row has the expected version.
+5. Explicitly remove only the old local row, then restart Saltcorn.
+6. Verify `/project-sync/api/info` and project convergence.
+
+Do not restart with two `saltcorn-project-sync` rows left in `_sc_plugins`;
+plugin load order would be ambiguous. The old local row may be restored with
+`saltcorn install-plugin --directory /path/to/checkout`, followed by the same
+explicit duplicate-row cleanup and a restart. Treat this as an operational
+rollback: always take a backup and match on name, source, location, and version
+before removing either record.
+
 ## Pinned Git install
 
 A pinned Git checkout remains available for plugin development and emergency

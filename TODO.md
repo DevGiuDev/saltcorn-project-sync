@@ -47,7 +47,7 @@ See [`docs/deployment-workflow-plan.md`](docs/deployment-workflow-plan.md).
   - [x] Keep the companion CLI available as `saltcorn-project-sync` and `sc-project-sync`.
   - [x] Publish version `0.1.0` from a tagged commit.
   - [ ] Configure npm provenance/trusted publishing for subsequent releases.
-- [ ] Migrate the VPS from a local-directory install to a pinned npm install and verify rollback.
+- [x] Migrate the VPS from a local-directory install to verified npm release `0.1.1`, retain the local checkout, and exercise rollback plus roll-forward.
 - [ ] Register and validate the npm package in the Saltcorn Module Store so administrators can install it from Saltcorn without cloning a repository.
 - [ ] Document upgrades, compatibility, rollback, release cadence, and pinned-version production installs.
 
