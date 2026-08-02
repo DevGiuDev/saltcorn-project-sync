@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { transliterate, safeFileName, deduplicateSafeFileNames } = require("../lib/project-io");
+const { transliterate, safeFileName, deduplicateSafeFileNames, stripObjectNoise } = require("../lib/project-io");
 
 test("transliterate strips common diacritics", () => {
   assert.equal(transliterate("Métricas"), "Metricas");
@@ -55,6 +55,28 @@ test("deduplicateSafeFileNames handles three-way collision", () => {
   const result = deduplicateSafeFileNames(names);
   assert.equal(result.length, 3);
   assert.deepEqual(result, ["metricas_1", "metricas_2", "metricas_3"]);
+});
+
+test("stripObjectNoise removes UI-created field attribute defaults before writing", () => {
+  const table = stripObjectNoise({
+    name: "test_tabla",
+    fields: [{
+      name: "sync_test_note",
+      label: "sync_test_note",
+      type: "String",
+      attributes: {
+        exact_search_only: false,
+        locale: null,
+        localizes_field: "",
+        max_length: null,
+        min_length: null,
+        options: "",
+        re_invalid_error: "",
+        regexp: "",
+      },
+    }],
+  }, "tables");
+  assert.deepEqual(table.fields, [{ label: "sync_test_note", name: "sync_test_note", type: "String" }]);
 });
 
 test("deduplicateSafeFileNames handles mixed collision and unique", () => {

@@ -54,6 +54,36 @@ test("normalizePack removes derived primary-key uniqueness and null field descri
   ]);
 });
 
+test("normalizePack removes materialized field attribute defaults", () => {
+  const out = normalizePack({
+    tables: [{ name: "notes", fields: [
+      {
+        name: "body",
+        type: "String",
+        attributes: {
+          exact_search_only: false,
+          locale: null,
+          localizes_field: "",
+          max_length: null,
+          min_length: null,
+          options: "",
+          re_invalid_error: "",
+          regexp: "",
+        },
+      },
+      {
+        name: "short_code",
+        type: "String",
+        attributes: { max_length: 32, regexp: "^[A-Z]+$", locale: null },
+      },
+    ] }],
+  });
+  assert.deepEqual(out.tables[0].fields, [
+    { name: "body", type: "String" },
+    { attributes: { max_length: 32, regexp: "^[A-Z]+$" }, name: "short_code", type: "String" },
+  ]);
+});
+
 test("normalizePack removes noisy generated metadata and empty defaults", () => {
   const out = normalizePack({
     pages: [{ name: "home", created_by: "alice", updated_by_user_id: 42, attributes: {}, configuration: {}, updated_at: "now" }],
