@@ -41,6 +41,23 @@ test("live diff renders drift and preserves orphan wording", () => {
   assert.match(html, /legacy-plugin/);
 });
 
+test("live diff compares only stable plugin lock fields", () => {
+  const diff = summarizeDiff(
+    { plugins: [{ name: "calendar", version: "1.2.3", source: "npm" }] },
+    {
+      plugins: [{
+        name: "calendar",
+        version: "1.2.3",
+        source: "npm",
+        configuration: {},
+        location: "/tenant-local/path",
+        deploy_private_key: "must-not-affect-diff",
+      }],
+    }
+  );
+  assert.deepEqual(diff.plugins, { created: [], updated: [], orphaned: [] });
+});
+
 test("live diff explains missing project selection", () => {
   assert.match(renderLiveDiff({ projectRoot: "" }), /Choose a project first/);
   assert.match(renderLiveDiff({ projectRoot: "" }), /Live Diff/);
