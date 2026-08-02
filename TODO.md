@@ -4,18 +4,19 @@
 
 See [`docs/deployment-workflow-plan.md`](docs/deployment-workflow-plan.md).
 
-- [ ] Add `plan-live` to export and plan directly through the selected adapter.
+- [x] Add `plan-live` to export and plan directly through the selected adapter.
 - [ ] Add one-command `deploy --env <env>` orchestration.
-- [ ] Add automatic post-apply convergence verification.
+- [x] Add automatic post-apply convergence verification.
+  - Implemented as the standalone `verify-live` command; `deploy` orchestration will call it automatically.
 - [ ] Add non-secret environment profiles and managed transport configuration.
 - [ ] Add backup client/server compatibility checks to `doctor-live`.
 
 ## CLI output
 
-- [ ] Make `apply` output compact by default.
-  - Include success/error status, operation and warning summaries, backup receipt, deployment ID, and adapter result.
-  - Omit the full resulting project state from the default response.
-  - Add an explicit `--full-output` option for callers that need the complete state JSON.
+- [x] Make `apply` output compact by default.
+  - [x] Include success/error status, operation and warning summaries, backup receipt, deployment ID, and adapter result.
+  - [x] Omit the full resulting project state from the default response.
+  - [x] Add an explicit `--full-output` option for callers that need the complete state JSON.
 
 ## Deployment history
 

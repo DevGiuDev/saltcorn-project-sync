@@ -53,7 +53,9 @@ Usage:
   saltcorn-project-sync git-pull
   saltcorn-project-sync git-push
   saltcorn-project-sync export [--adapter command|rest|native] --out DIR
-  saltcorn-project-sync apply [--adapter command|rest|native] [--env ENV] [--allow-destructive]
+  saltcorn-project-sync plan-live [--adapter command|rest|native] [--env ENV] [--backup]
+  saltcorn-project-sync verify-live [--adapter command|rest|native]
+  saltcorn-project-sync apply [--adapter command|rest|native] [--env ENV] [--allow-destructive] [--full-output]
   saltcorn-project-sync restore [--adapter command|rest|native] [--deployment ID|last]
   saltcorn-project-sync list-seeds
   saltcorn-project-sync list-migrations
@@ -480,6 +482,61 @@ function commandGitPush() {
   execFileSync("git", ["push"], { stdio: "inherit" });
 }
 
+async function commandPlanLive() {
+  const adapterName = arg("--adapter", process.env.SALTCORN_PROJECT_SYNC_ADAPTER || "command");
+  const adapter = getTenantAdapter(adapterName);
+  const env = arg("--env", "dev");
+  const desired = loadProjectState();
+  const actual = normalizeProjectExport(await adapter.exportProject({ referenceTables: desired.reference_data || [] }));
+  const tenantVersion = lastAppliedVersion();
+  const intents = loadChangeIntents(process.cwd(), { sinceVersion: tenantVersion });
+  const plan = planProject({ desired, actual, intents, env, backup: has("--backup") });
+  process.stdout.write(canonicalStringify({ ...plan, adapter: adapter.name || adapterName, previous_version: tenantVersion }));
+}
+
+function bucketDiff(entry = {}) {
+  const label = (item) => (item && (item.name || item.key || item.role)) || "<unnamed>";
+  return {
+    created: (entry.created || []).map(label),
+    updated: (entry.updated || []).map((item) => (item && (item.key || item.name)) || "<unnamed>"),
+    orphaned: (entry.orphaned || []).map(label),
+  };
+}
+
+function bucketNonEmpty(bucket) {
+  return Boolean(bucket.created.length || bucket.updated.length || bucket.orphaned.length);
+}
+
+async function commandVerifyLive() {
+  const adapterName = arg("--adapter", process.env.SALTCORN_PROJECT_SYNC_ADAPTER || "command");
+  const adapter = getTenantAdapter(adapterName);
+  const desired = loadProjectState();
+  const actual = normalizeProjectExport(await adapter.exportProject({ referenceTables: desired.reference_data || [] }));
+  const { summarizeDiff } = require("../lib/plugin/helpers");
+  const diff = summarizeDiff(desired, actual);
+
+  const fields = (diff.tables?.fieldDiffs || [])
+    .map((entry) => ({ table: entry.table, ...bucketDiff(entry.fields) }))
+    .filter(bucketNonEmpty);
+  const kinds = Object.fromEntries(
+    Object.entries(diff.kinds || {}).map(([kind, entry]) => [kind, bucketDiff(entry)])
+  );
+  const drift = {
+    tables: bucketDiff(diff.tables?.tables),
+    fields,
+    kinds,
+    plugins: bucketDiff(diff.plugins),
+  };
+  const hasDrift =
+    bucketNonEmpty(drift.tables) ||
+    drift.fields.length > 0 ||
+    Object.values(drift.kinds).some(bucketNonEmpty) ||
+    bucketNonEmpty(drift.plugins);
+  const result = { ok: !hasDrift, adapter: adapter.name || adapterName, drift };
+  process.stdout.write(canonicalStringify(result));
+  if (hasDrift) process.exit(5);
+}
+
 async function commandExportLive() {
   const adapter = getTenantAdapter(arg("--adapter", process.env.SALTCORN_PROJECT_SYNC_ADAPTER || "command"));
   let referenceTables = [];
@@ -543,7 +600,18 @@ async function commandApplyLive() {
   }
   const result = applyProject({ desired, actual, intents, env, backup, force: has("--force") });
   if (!result.applied) {
-    process.stdout.write(canonicalStringify(result));
+    if (has("--full-output")) {
+      process.stdout.write(canonicalStringify(result));
+    } else {
+      process.stdout.write(canonicalStringify({
+        ok: false,
+        env,
+        errors: result.errors,
+        operations: result.plan.operations.length,
+        warnings: result.plan.warnings.length,
+        blocked: result.plan.blocked,
+      }));
+    }
     process.exit(3);
   }
   const adapterResult = adapter.applyPlan
@@ -559,10 +627,21 @@ async function commandApplyLive() {
       })
     : await adapter.applyProject(result.state);
   if (adapterResult && adapterResult.ok === false) {
-    process.stdout.write(canonicalStringify({ ...result, adapter_result: adapterResult }));
+    if (has("--full-output")) {
+      process.stdout.write(canonicalStringify({ ...result, adapter_result: adapterResult }));
+    } else {
+      process.stdout.write(canonicalStringify({
+        ok: false,
+        env,
+        operations: result.plan.operations.length,
+        warnings: result.plan.warnings.length,
+        adapter: adapter.name || adapterName,
+        adapter_result: adapterResult,
+      }));
+    }
     process.exit(6);
   }
-  appendDeploymentRecord(process.cwd(), {
+  const deploymentRecord = appendDeploymentRecord(process.cwd(), {
     env,
     status: "applied-live",
     commit: currentGitCommit(),
@@ -587,7 +666,31 @@ async function commandApplyLive() {
       if (refreshResult.refreshed) adapterResult._state_refreshed = refreshResult.refreshed;
     } catch (_e) { /* non-critical */ }
   }
-  process.stdout.write(canonicalStringify({ ...result, adapter_result: adapterResult }));
+  if (has("--full-output")) {
+    process.stdout.write(canonicalStringify({ ...result, adapter_result: adapterResult, deployment_id: deploymentRecord.id }));
+  } else {
+    const destructiveCount = result.plan.operations.filter((op) => /^(drop_|rename_|alter_)/.test(op.action || "")).length;
+    process.stdout.write(canonicalStringify({
+      ok: true,
+      env,
+      deployment_id: deploymentRecord.id,
+      version: projectVersion,
+      previous_version: tenantVersion,
+      commit: currentGitCommit(),
+      operations: result.plan.operations.length,
+      destructive_operations: destructiveCount,
+      warnings: result.plan.warnings.length,
+      backup: backupResult ? {
+        ok: backupResult.ok !== false,
+        id: backupResult.id || null,
+        path: backupResult.path || null,
+        created_at: backupResult.created_at || null,
+        sha256: backupResult.sha256 || null,
+      } : null,
+      adapter: adapter.name || adapterName,
+      state_refreshed: adapterResult && adapterResult._state_refreshed ? adapterResult._state_refreshed : null,
+    }));
+  }
 }
 
 function commandListSeeds() {
@@ -810,6 +913,8 @@ async function main() {
   else if (cmd === "git-pull") commandGitPull();
   else if (cmd === "git-push") commandGitPush();
   else if (cmd === "export") await commandExportLive();
+  else if (cmd === "plan-live") await commandPlanLive();
+  else if (cmd === "verify-live") await commandVerifyLive();
   else if (cmd === "apply") await commandApplyLive();
   else if (cmd === "restore") await commandRestoreLive();
   else if (cmd === "list-seeds") commandListSeeds();

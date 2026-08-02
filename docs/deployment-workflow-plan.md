@@ -86,11 +86,11 @@ parallel if store review is external.
 
 ### Phase 1 — Compact and direct live commands
 
-- Add `plan-live --adapter rest --env <env>`.
-- Make `apply` output compact by default.
-- Include backup metadata and deployment ID in successful output.
-- Add `--full-output` for callers that explicitly need complete state.
-- Add `verify-live` or equivalent post-apply convergence command.
+- [x] Add `plan-live --adapter rest --env <env>`.
+- [x] Make `apply` output compact by default.
+- [x] Include backup metadata and deployment ID in successful output.
+- [x] Add `--full-output` for callers that explicitly need complete state.
+- [x] Add `verify-live` as the post-apply convergence command.
 
 ### Phase 2 — Target-side deployment ledger
 

@@ -11,7 +11,9 @@ saltcorn-project-sync plan --env prod --backup --tenant-export tenant.json
 saltcorn-project-sync report --env prod --backup --tenant-export tenant.json --out deploy-report.md
 saltcorn-project-sync preflight --env prod --backup --tenant-export tenant.json
 saltcorn-project-sync apply-file --env dev --tenant-export tenant.json --out applied.json
+saltcorn-project-sync plan-live --adapter rest --env dev --backup
 saltcorn-project-sync apply --adapter rest --env dev --allow-destructive
+saltcorn-project-sync verify-live --adapter rest
 saltcorn-project-sync backup --env prod
 saltcorn-project-sync record-deployment --env prod --status success
 saltcorn-project-sync doctor
@@ -37,6 +39,24 @@ The `command` adapter is configured via environment variables:
 - `SALTCORN_PROJECT_SYNC_SEQUENCE_CHECK_CMD`: optional `doctor-live` command for Postgres sequence health. It should print JSON; `{ "ok": false }` marks the check failed.
 
 `doctor-live` runs live reachability, adapter capability, Saltcorn version, plugin lock, token/auth, live export, and optional sequence-health checks.
+
+`plan-live` exports live state through the selected adapter and computes a plan
+directly, without a manually generated `--tenant-export` file. It applies the
+same version-aware change-intent filtering as `apply`.
+
+`apply` prints a compact deployment receipt by default: `ok`, `env`,
+`deployment_id`, `version`/`previous_version`, `commit`, operation/warning
+counts, a minimal backup receipt (`id`, `path`, `created_at`, `sha256`), and
+whether Saltcorn state was refreshed. Add `--full-output` to print the
+complete plan and resulting project state instead.
+
+`verify-live` exports live state through the selected adapter and compares it
+against the desired project state using the same semantics as the plugin's
+live diff: created/updated tables, fields, views, pages, triggers, roles,
+menu, settings, and plugins count as drift; entries present only in the live
+tenant are reported as `orphaned` and are never treated as drift. Exits
+non-zero when drift is detected, which makes it suitable as a post-apply
+convergence check in scripts and CI.
 
 Plugin lock changes are planned from `plugins.lock.json`: missing locked plugins produce `install_plugin`, version/source drift produces `update_plugin`, and extra live plugins are preserved as `orphaned_plugin` warnings unless an explicit `drop_plugin` intent exists.
 
