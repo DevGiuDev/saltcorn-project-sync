@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.3.0 - 2026-08-02
+
+### Added
+
+- `plan-live`: export live state and compute a plan directly through the
+  selected adapter, without a manually generated `--tenant-export` file.
+- `verify-live`: scriptable post-apply convergence check reusing the plugin's
+  live-diff semantics; exits non-zero when real drift is detected and treats
+  tenant-only objects as preserved orphans, never as drift.
+
+### Changed
+
+- `apply` now prints a compact deployment receipt by default (status,
+  deployment ID, version, commit, operation/warning counts, minimal backup
+  receipt, and whether Saltcorn state was refreshed) instead of the complete
+  plan and resulting project state. Add `--full-output` to restore the
+  previous full output.
+
 ## 0.2.0 - 2026-08-02
 
 ### Added
