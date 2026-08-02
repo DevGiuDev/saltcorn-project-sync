@@ -12,6 +12,10 @@ test("configSettingRows exports stable non-secret Saltcorn config", () => {
       { key: "site_name", value: { v: "Example" } },
       { key: "menu_items", value: { v: [] } },
       { key: "api_token", value: { v: "secret" } },
+      { key: "apn_signing_key", value: { v: "secret" } },
+      { key: "firebase_app_services", value: { v: { private_key: "secret" } } },
+      { key: "mobile_builder_settings", value: { v: { keystorePassword: "secret" } } },
+      { key: "available_plugins", value: { v: [{ name: "cache noise" }] } },
       { key: "favicon_id", value: {} },
     ]),
     [{ name: "site_name", key: "site_name", value: "Example" }]
