@@ -34,6 +34,8 @@ services:
       SALTCORN_PROJECT_SYNC_BACKUP_CMD: "printf '{\"ok\":true,\"id\":\"docker-integration-backup\",\"created_at\":\"2026-01-01T00:00:00Z\"}'"
       SCPS_RESET_SCHEMA: ${SCPS_RESET_SCHEMA:-1}
       SCPS_PROJECT_DIR: ${SCPS_PROJECT_DIR:-/project}
+      SCPS_PLUGIN_NPM_SPEC: ${SCPS_PLUGIN_NPM_SPEC:-}
+      SCPS_PLUGIN_DIRECTORY: ${SCPS_PLUGIN_DIRECTORY:-}
     volumes:
       - .:/plugin
       - ${SCPS_PROJECT_HOST_DIR:-./examples}:/project

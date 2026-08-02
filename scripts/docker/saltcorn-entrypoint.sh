@@ -36,8 +36,16 @@ else
   log "SCPS_RESET_SCHEMA=${SCPS_RESET_SCHEMA}; skipping reset-schema"
 fi
 
-log "installing saltcorn-project-sync plugin from /plugin"
-saltcorn install-plugin -d /plugin
+if [ -n "${SCPS_PLUGIN_NPM_SPEC:-}" ]; then
+  log "installing saltcorn-project-sync plugin from npm spec ${SCPS_PLUGIN_NPM_SPEC}"
+  saltcorn install-plugin -p "${SCPS_PLUGIN_NPM_SPEC}"
+elif [ -n "${SCPS_PLUGIN_DIRECTORY:-}" ]; then
+  log "installing packed saltcorn-project-sync plugin from ${SCPS_PLUGIN_DIRECTORY}"
+  saltcorn install-plugin -d "${SCPS_PLUGIN_DIRECTORY}"
+else
+  log "installing saltcorn-project-sync plugin from /plugin"
+  saltcorn install-plugin -d /plugin
+fi
 
 # Install common type plugins needed by the project
 # saltcorn add-plugin installs from npm by name

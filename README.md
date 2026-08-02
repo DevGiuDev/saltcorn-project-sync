@@ -4,6 +4,25 @@ Git-backed application versioning and safe deployment for Saltcorn tenants.
 
 Supported Saltcorn versions: **1.6.0 and newer**.
 
+## Installation
+
+Install the companion CLI from npm:
+
+```bash
+npm install --global saltcorn-project-sync@0.1.0
+saltcorn-project-sync --help
+```
+
+Install the plugin into Saltcorn from npm:
+
+```bash
+saltcorn install-plugin --npm saltcorn-project-sync@0.1.0
+```
+
+For production, pin an explicit version instead of installing an unversioned
+latest release. See [Installation](docs/installation.md) and
+[Production safety](docs/production-safety.md).
+
 ## Goal
 
 Manage a Saltcorn app like a versioned project: export selected objects, review Git diffs, pull/apply changes in another tenant, preserve data by default, and require explicit intent for destructive operations.

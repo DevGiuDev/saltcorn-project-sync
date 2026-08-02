@@ -38,13 +38,16 @@ See [`docs/deployment-workflow-plan.md`](docs/deployment-workflow-plan.md).
   - Use masked/encrypted or reference-based secret handling; do not persist plaintext tokens in Git, logs, deployment history, or ordinary settings.
   - Support token generation, one-time display, rotation, and revocation from the UI where secure storage is available.
 
-## Packaging and distribution
+## Packaging and distribution — milestone 0
 
 - [ ] Publish `saltcorn-project-sync` to the npm registry.
-  - Add a strict package file allowlist and `prepublishOnly` validation.
-  - Test installation from `npm pack` in a clean Saltcorn tenant.
-  - Publish versioned releases from signed/tagged commits with npm provenance where available.
-  - Keep the companion CLI available as `saltcorn-project-sync` and `sc-project-sync`.
+  - [x] Add a strict package file allowlist and `prepublishOnly` validation.
+  - [x] Test the packed artifact in a clean Node installation.
+  - [x] Test installation from the packed artifact in a disposable Saltcorn tenant.
+  - [x] Keep the companion CLI available as `saltcorn-project-sync` and `sc-project-sync`.
+  - [ ] Publish version `0.1.0` from a tagged commit.
+  - [ ] Configure npm provenance/trusted publishing for subsequent releases.
+- [ ] Migrate the VPS from a local-directory install to a pinned npm install and verify rollback.
 - [ ] Register and validate the npm package in the Saltcorn Module Store so administrators can install it from Saltcorn without cloning a repository.
 - [ ] Document upgrades, compatibility, rollback, release cadence, and pinned-version production installs.
 

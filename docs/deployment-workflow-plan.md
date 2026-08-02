@@ -73,6 +73,17 @@ It applied `create_field test_tabla.sync_test_note` with backup
 
 ## Delivery phases
 
+### Milestone 0 — npm bootstrap release
+
+Before changing the deployment protocol, publish the current tested baseline as
+`saltcorn-project-sync@0.1.0`. Validate the packed artifact in clean Node and
+Saltcorn environments, migrate the VPS from its local-directory install to the
+pinned npm package, and prove rollback to the previous local install. This
+makes every later phase independently versioned and easy to deploy remotely.
+
+Saltcorn Module Store registration follows the npm release and may continue in
+parallel if store review is external.
+
 ### Phase 1 — Compact and direct live commands
 
 - Add `plan-live --adapter rest --env <env>`.
@@ -131,16 +142,14 @@ It applied `create_field test_tabla.sync_test_note` with backup
 - Test backup failure, apply failure, duplicate request ID, and post-apply drift.
 - Test setup from the UI without hand-edited synchronization files.
 
-### Phase 6 — npm and Saltcorn Module Store distribution
+### Phase 6 — Distribution hardening and Module Store
 
-- Prepare a minimal npm artifact with an explicit file allowlist and
-  `prepublishOnly` lint/test/package checks.
-- Validate `npm pack` installation in a clean Saltcorn tenant and validate the
-  companion CLI binaries from the packed artifact.
-- Publish `saltcorn-project-sync` from a versioned Git tag, with npm provenance
-  and release notes where available.
+- Configure npm provenance/trusted publishing for releases after the initial
+  bootstrap publication.
 - Register and test the package in the Saltcorn Module Store so administrators
   can install and upgrade it from Saltcorn without cloning the repository.
+- Automate signed/tagged releases, release notes, compatibility checks, and
+  package installation tests.
 - Document pinned production installs, upgrades, rollback, compatibility, and
   the release cadence.
 

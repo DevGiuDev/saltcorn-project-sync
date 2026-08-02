@@ -1,5 +1,5 @@
 {
-  "author": "",
+  "author": "DevGiuDev",
   "bin": {
     "saltcorn-project-sync": "bin/saltcorn-project-sync.js",
     "sc-project-sync": "bin/saltcorn-project-sync.js"
@@ -40,7 +40,56 @@
     "test:integration:docker:up": "./scripts/integration-docker-up.sh",
     "test:integration:docker:down": "./scripts/integration-docker-down.sh",
     "dry-test": "./scripts/dry-test.sh",
-    "dry-test:plan": "./scripts/dry-test.sh --plan-only"
+    "dry-test:plan": "./scripts/dry-test.sh --plan-only",
+    "package:check": "node scripts/check-package.js",
+    "test:package": "node scripts/package-smoke.js",
+    "release:check": "npm run lint && npm test && npm run package:check && npm run test:package",
+    "prepublishOnly": "npm run release:check",
+    "test:package:saltcorn": "./scripts/package-saltcorn-smoke.sh",
+    "release:check:full": "npm run release:check && npm run test:package:saltcorn"
   },
-  "version": "0.1.0"
+  "version": "0.1.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DevGiuDev/saltcorn-project-sync.git"
+  },
+  "homepage": "https://github.com/DevGiuDev/saltcorn-project-sync#readme",
+  "bugs": {
+    "url": "https://github.com/DevGiuDev/saltcorn-project-sync/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "index.js",
+    "bin/",
+    "lib/",
+    "viewtemplates/",
+    "scripts/install-clone-schema.js",
+    "vendor/clone_schema.sql",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md",
+    "docs/architecture.md",
+    "docs/branch-tenant-design.md",
+    "docs/change-intents.md",
+    "docs/ci-cd.md",
+    "docs/cli.md",
+    "docs/compatibility.md",
+    "docs/dangerous-changes.md",
+    "docs/dry-test.md",
+    "docs/installation.md",
+    "docs/integration-docker.md",
+    "docs/native-adapter.md",
+    "docs/native-compatibility-matrix.md",
+    "docs/normalization.md",
+    "docs/plugin-api.md",
+    "docs/production-safety.md",
+    "docs/project-format.md",
+    "docs/reference-data.md",
+    "docs/rest-adapter.md",
+    "docs/rollback.md",
+    "docs/safety-model.md",
+    "docs/seeds.md"
+  ]
 }

@@ -27,9 +27,35 @@ SALTCORN_PROJECT_SYNC_API_TOKEN=dev-token
 
 The Git panel can also be opened from a specific project that already has `root_path` set, in which case the `SALTCORN_PROJECT_SYNC_PROJECT_ROOT` env var is not required for that project-scoped view.
 
-## Git install
+## npm install
 
-Until an npm package is published, deploy from a pinned Git commit/tag:
+Install a pinned CLI version:
+
+```bash
+npm install --global saltcorn-project-sync@0.1.0
+saltcorn-project-sync --help
+```
+
+The package exposes both command names:
+
+```text
+saltcorn-project-sync
+sc-project-sync
+```
+
+Install the same version as a Saltcorn plugin:
+
+```bash
+saltcorn install-plugin --npm saltcorn-project-sync@0.1.0
+```
+
+Restart Saltcorn after the first install or an upgrade so route changes are
+loaded. Production environments should pin an explicit package version.
+
+## Pinned Git install
+
+A pinned Git checkout remains available for plugin development and emergency
+rollback:
 
 ```bash
 git clone https://github.com/DevGiuDev/saltcorn-project-sync.git /opt/saltcorn-project-sync
@@ -37,35 +63,6 @@ cd /opt/saltcorn-project-sync
 git checkout <tag-or-commit>
 npm ci --omit=dev --ignore-scripts
 npm link
-```
-
-Then use:
-
-```bash
-saltcorn-project-sync --help
-```
-
-For production, pin a tag/commit rather than deploying an unpinned branch.
-
-## Future npm install
-
-Package name strategy is currently:
-
-```text
-saltcorn-project-sync
-```
-
-The package exposes:
-
-```text
-saltcorn-project-sync
-sc-project-sync
-```
-
-Expected future install:
-
-```bash
-npm install -g saltcorn-project-sync
 ```
 
 ## Clean Saltcorn validation
