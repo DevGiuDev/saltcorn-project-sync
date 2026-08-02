@@ -105,12 +105,14 @@ parallel if store review is external.
 
 ### Phase 3 — One-command deploy orchestration
 
-- Add `deploy --env <env>`.
-- Chain plan, confirmation, backup, apply, refresh, convergence, and recording.
-- Refuse destructive operations without explicit intent and the existing
+- [x] Add `deploy --env <env>`.
+- [x] Chain plan, confirmation, backup, apply, refresh, convergence, and recording.
+- [x] Refuse destructive operations without explicit intent and the existing
   destructive approval flag.
-- Support `--yes` for CI and preserve interactive confirmation by default.
-- Return non-zero exit codes for backup, apply, refresh, or convergence failure.
+- [x] Support `--yes` for CI and preserve interactive confirmation by default.
+- [x] Return non-zero exit codes for backup, apply, refresh, or convergence failure.
+- [x] Support an explicit `--request-id` for genuinely idempotent retries against
+  the target ledger.
 
 ### Phase 4 — UI-first environment configuration and transport
 

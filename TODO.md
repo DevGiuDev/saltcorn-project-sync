@@ -5,9 +5,9 @@
 See [`docs/deployment-workflow-plan.md`](docs/deployment-workflow-plan.md).
 
 - [x] Add `plan-live` to export and plan directly through the selected adapter.
-- [ ] Add one-command `deploy --env <env>` orchestration.
+- [x] Add one-command `deploy --env <env>` orchestration.
 - [x] Add automatic post-apply convergence verification.
-  - Implemented as the standalone `verify-live` command; `deploy` orchestration will call it automatically.
+  - Implemented as the standalone `verify-live` command, called automatically by `deploy` (skippable via `--skip-verify` for debugging).
 - [ ] Add non-secret environment profiles and managed transport configuration.
 - [ ] Add backup client/server compatibility checks to `doctor-live`.
 

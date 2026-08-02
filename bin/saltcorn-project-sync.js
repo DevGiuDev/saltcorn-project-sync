@@ -56,6 +56,7 @@ Usage:
   saltcorn-project-sync plan-live [--adapter command|rest|native] [--env ENV] [--backup]
   saltcorn-project-sync verify-live [--adapter command|rest|native]
   saltcorn-project-sync apply [--adapter command|rest|native] [--env ENV] [--allow-destructive] [--full-output]
+  saltcorn-project-sync deploy [--adapter command|rest|native] --env ENV [--yes] [--allow-destructive] [--skip-verify] [--request-id ID]
   saltcorn-project-sync restore [--adapter command|rest|native] [--deployment ID|last]
   saltcorn-project-sync list-seeds
   saltcorn-project-sync list-migrations
@@ -507,14 +508,9 @@ function bucketNonEmpty(bucket) {
   return Boolean(bucket.created.length || bucket.updated.length || bucket.orphaned.length);
 }
 
-async function commandVerifyLive() {
-  const adapterName = arg("--adapter", process.env.SALTCORN_PROJECT_SYNC_ADAPTER || "command");
-  const adapter = getTenantAdapter(adapterName);
-  const desired = loadProjectState();
-  const actual = normalizeProjectExport(await adapter.exportProject({ referenceTables: desired.reference_data || [] }));
+function computeLiveDrift(desired, actual) {
   const { summarizeDiff } = require("../lib/plugin/helpers");
   const diff = summarizeDiff(desired, actual);
-
   const fields = (diff.tables?.fieldDiffs || [])
     .map((entry) => ({ table: entry.table, ...bucketDiff(entry.fields) }))
     .filter(bucketNonEmpty);
@@ -532,6 +528,15 @@ async function commandVerifyLive() {
     drift.fields.length > 0 ||
     Object.values(drift.kinds).some(bucketNonEmpty) ||
     bucketNonEmpty(drift.plugins);
+  return { hasDrift, drift };
+}
+
+async function commandVerifyLive() {
+  const adapterName = arg("--adapter", process.env.SALTCORN_PROJECT_SYNC_ADAPTER || "command");
+  const adapter = getTenantAdapter(adapterName);
+  const desired = loadProjectState();
+  const actual = normalizeProjectExport(await adapter.exportProject({ referenceTables: desired.reference_data || [] }));
+  const { hasDrift, drift } = computeLiveDrift(desired, actual);
   const result = { ok: !hasDrift, adapter: adapter.name || adapterName, drift };
   process.stdout.write(canonicalStringify(result));
   if (hasDrift) process.exit(5);
@@ -680,17 +685,257 @@ async function commandApplyLive() {
       operations: result.plan.operations.length,
       destructive_operations: destructiveCount,
       warnings: result.plan.warnings.length,
-      backup: backupResult ? {
-        ok: backupResult.ok !== false,
-        id: backupResult.id || null,
-        path: backupResult.path || null,
-        created_at: backupResult.created_at || null,
-        sha256: backupResult.sha256 || null,
-      } : null,
+      backup: backupReceipt(backupResult),
       adapter: adapter.name || adapterName,
       state_refreshed: adapterResult && adapterResult._state_refreshed ? adapterResult._state_refreshed : null,
     }));
   }
+}
+
+function backupReceipt(backupResult) {
+  if (!backupResult || typeof backupResult !== "object") return null;
+  return {
+    ok: backupResult.ok !== false,
+    id: backupResult.id || null,
+    path: backupResult.path || null,
+    created_at: backupResult.created_at || null,
+    sha256: backupResult.sha256 || null,
+  };
+}
+
+function countDriftEntries(drift = {}) {
+  const bucketCount = (b = {}) => (b.created || []).length + (b.updated || []).length;
+  let count = bucketCount(drift.tables) + bucketCount(drift.plugins);
+  for (const entry of drift.fields || []) count += bucketCount(entry);
+  for (const entry of Object.values(drift.kinds || {})) count += bucketCount(entry);
+  return count;
+}
+
+function promptConfirm(message) {
+  if (!process.stdin.isTTY) return Promise.resolve(false);
+  const readline = require("node:readline");
+  const rl = readline.createInterface({ input: process.stdin, output: process.stderr });
+  return new Promise((resolve) => {
+    rl.question(`${message} [y/N] `, (answer) => {
+      rl.close();
+      resolve(/^y(es)?$/i.test((answer || "").trim()));
+    });
+  });
+}
+
+async function commandDeploy() {
+  const adapterName = arg("--adapter", process.env.SALTCORN_PROJECT_SYNC_ADAPTER || "command");
+  const env = arg("--env", "dev");
+  const yes = has("--yes");
+  const allowDestructive = has("--allow-destructive");
+  const skipVerify = has("--skip-verify");
+  const adapter = getTenantAdapter(adapterName);
+  const steps = [];
+
+  const abort = (exitCode, extra = {}) => {
+    process.stdout.write(canonicalStringify({ ok: false, env, adapter: adapter.name || adapterName, steps, ...extra }));
+    process.exit(exitCode);
+  };
+
+  // 1) Connect and check compatibility
+  let info;
+  try {
+    info = adapter.info ? await adapter.info() : { adapter: adapter.name || adapterName };
+  } catch (err) {
+    steps.push({ step: "connect", ok: false, error: err.message });
+    return abort(2);
+  }
+  steps.push({ step: "connect", ok: true, saltcorn_version: info.saltcorn_version || null });
+
+  const manifest = loadManifest();
+  const compat = checkSaltcornCompatibility(manifest, info.saltcorn_version);
+  steps.push({ step: "compatibility", ok: compat.ok, result: compat });
+  if (!compat.ok) return abort(2);
+
+  // 2) Export live state and compute the plan
+  const desired = loadProjectState();
+  let actual;
+  try {
+    actual = normalizeProjectExport(await adapter.exportProject({ referenceTables: desired.reference_data || [] }));
+  } catch (err) {
+    steps.push({ step: "export", ok: false, error: err.message });
+    return abort(2);
+  }
+  const tenantVersion = lastAppliedVersion();
+  const intents = loadChangeIntents(process.cwd(), { sinceVersion: tenantVersion });
+  const projectVersion = (manifest || {}).version || null;
+  const plan = planProject({ desired, actual, intents, env, backup: true });
+  const destructiveCount = plan.operations.filter((op) => /^(drop_|rename_|alter_)/.test(op.action || "")).length;
+  steps.push({
+    step: "plan",
+    ok: plan.blocked.length === 0,
+    operations: plan.operations.length,
+    destructive_operations: destructiveCount,
+    warnings: plan.warnings.length,
+    blocked: plan.blocked,
+  });
+  if (plan.blocked.length) return abort(3);
+  if (destructiveCount > 0 && !allowDestructive) {
+    steps.push({ step: "destructive-guard", ok: false, error: "destructive operations require --allow-destructive" });
+    return abort(3);
+  }
+
+  console.error(`[deploy] ${env}: ${plan.operations.length} operation(s), ${plan.warnings.length} warning(s), ${destructiveCount} destructive.`);
+  if (!yes) {
+    const confirmed = await promptConfirm(`Apply this plan to "${env}"?`);
+    if (!confirmed) {
+      steps.push({ step: "confirmation", ok: false, error: "not confirmed (pass --yes for non-interactive use)" });
+      return abort(1);
+    }
+  }
+  steps.push({ step: "confirmation", ok: true, mode: yes ? "yes-flag" : "interactive" });
+
+  // 3) Backup
+  let backupResult;
+  try {
+    backupResult = await adapter.backup();
+  } catch (err) {
+    steps.push({ step: "backup", ok: false, error: err.message });
+    return abort(3);
+  }
+  const backupVerified = isVerifiableBackupMetadata(backupResult);
+  steps.push({ step: "backup", ok: backupVerified, receipt: backupReceipt(backupResult) });
+  if ((env === "prod" || env === "test") && !backupVerified) return abort(3);
+
+  // 4) Apply
+  const applied = applyProject({ desired, actual, intents, env, backup: backupVerified, force: false });
+  if (!applied.applied) {
+    steps.push({ step: "apply", ok: false, errors: applied.errors });
+    return abort(3);
+  }
+  let adapterResult;
+  try {
+    adapterResult = adapter.applyPlan
+      ? await adapter.applyPlan({
+          desired,
+          actual,
+          plan: applied.plan,
+          state: applied.state,
+          env,
+          backup: backupVerified,
+          backup_metadata: backupResult,
+          allow_destructive: allowDestructive,
+        })
+      : await adapter.applyProject(applied.state);
+  } catch (err) {
+    steps.push({ step: "apply", ok: false, error: err.message });
+    return abort(6);
+  }
+  const applyOk = !(adapterResult && adapterResult.ok === false);
+  steps.push({ step: "apply", ok: applyOk, operations: applied.plan.operations.length });
+  if (!applyOk) return abort(6, { adapter_result: adapterResult });
+
+  // 5) Refresh live Saltcorn state (REST target only; matches 'apply')
+  let stateRefreshed = null;
+  if ((adapter.name || adapterName) === "rest") {
+    try {
+      const baseUrl = process.env.SALTCORN_PROJECT_SYNC_BASE_URL || "";
+      const token = process.env.SALTCORN_PROJECT_SYNC_API_TOKEN || "";
+      const resp = await fetch(`${baseUrl}/project-sync/api/refresh-state`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      });
+      const refreshResult = await resp.json();
+      stateRefreshed = refreshResult.refreshed || null;
+    } catch (_err) { /* non-critical */ }
+  }
+  steps.push({ step: "refresh", ok: true, refreshed: stateRefreshed });
+
+  // 6) Verify post-apply convergence
+  let convergence = null;
+  if (!skipVerify) {
+    try {
+      const postActual = normalizeProjectExport(await adapter.exportProject({ referenceTables: desired.reference_data || [] }));
+      const { hasDrift, drift } = computeLiveDrift(desired, postActual);
+      convergence = {
+        ok: !hasDrift,
+        drift_count: countDriftEntries(drift),
+        warning_count: applied.plan.warnings.length,
+        checked_at: new Date().toISOString(),
+      };
+      steps.push({ step: "verify", ok: !hasDrift, drift });
+    } catch (err) {
+      steps.push({ step: "verify", ok: false, error: err.message });
+    }
+  } else {
+    steps.push({ step: "verify", ok: true, skipped: true });
+  }
+  const converged = !convergence || convergence.ok !== false;
+
+  // 7) Persist the deployment locally
+  const deploymentRecord = appendDeploymentRecord(process.cwd(), {
+    env,
+    status: converged ? "applied-live" : "drifted",
+    commit: currentGitCommit(),
+    version: projectVersion,
+    previous_version: tenantVersion,
+    backup: backupResult,
+    adapter_result: adapterResult,
+    convergence,
+    operations: applied.plan.operations.length,
+    warnings: applied.plan.warnings.length,
+  });
+
+  // 8) Persist an authoritative deployment record on the target, when supported
+  let ledger = null;
+  if (typeof adapter.recordDeployment === "function") {
+    // An explicit --request-id makes this a genuinely idempotent retry: the
+    // target-side deployment_id is derived from it too, so a repeated CLI
+    // invocation for the same attempt (e.g. after a CI network failure)
+    // reuses the same ledger row instead of the ever-incrementing local
+    // deployment counter, which would otherwise make every retry look like a
+    // different deployment and be rejected as a request_id conflict.
+    const explicitRequestId = arg("--request-id", null);
+    const requestId = explicitRequestId || `${env}-${currentGitCommit() || "nocommit"}-${projectVersion || "noversion"}-${deploymentRecord.id}`;
+    const ledgerDeploymentId = explicitRequestId ? `deploy-${explicitRequestId}` : deploymentRecord.id;
+    try {
+      const response = await adapter.recordDeployment({
+        request_id: requestId,
+        deployment_id: ledgerDeploymentId,
+        kind: "deployment",
+        project: manifest.slug || manifest.name || null,
+        version: projectVersion,
+        commit: currentGitCommit(),
+        environment: env,
+        status: converged ? "verified" : "drifted",
+        operations: { count: applied.plan.operations.length, destructive: destructiveCount },
+        warnings: { count: applied.plan.warnings.length },
+        backup: backupReceipt(backupResult),
+        convergence,
+      });
+      ledger = response && response.ok ? { deployment_id: response.record?.deployment_id, created: response.created } : { error: (response && response.error) || "unknown ledger error" };
+      steps.push({ step: "record", ok: Boolean(response && response.ok), target: "ledger" });
+    } catch (err) {
+      ledger = { error: err.message };
+      steps.push({ step: "record", ok: false, error: err.message, target: "ledger" });
+    }
+  } else {
+    steps.push({ step: "record", ok: true, target: "local-only" });
+  }
+
+  process.stdout.write(canonicalStringify({
+    ok: converged,
+    env,
+    deployment_id: deploymentRecord.id,
+    version: projectVersion,
+    previous_version: tenantVersion,
+    commit: currentGitCommit(),
+    operations: applied.plan.operations.length,
+    destructive_operations: destructiveCount,
+    warnings: applied.plan.warnings.length,
+    backup: backupReceipt(backupResult),
+    convergence,
+    adapter: adapter.name || adapterName,
+    state_refreshed: stateRefreshed,
+    ledger,
+    steps,
+  }));
+  if (!converged) process.exit(5);
 }
 
 function commandListSeeds() {
@@ -916,6 +1161,7 @@ async function main() {
   else if (cmd === "plan-live") await commandPlanLive();
   else if (cmd === "verify-live") await commandVerifyLive();
   else if (cmd === "apply") await commandApplyLive();
+  else if (cmd === "deploy") await commandDeploy();
   else if (cmd === "restore") await commandRestoreLive();
   else if (cmd === "list-seeds") commandListSeeds();
   else if (cmd === "list-migrations") commandListMigrations();

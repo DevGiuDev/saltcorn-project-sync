@@ -14,6 +14,7 @@ saltcorn-project-sync apply-file --env dev --tenant-export tenant.json --out app
 saltcorn-project-sync plan-live --adapter rest --env dev --backup
 saltcorn-project-sync apply --adapter rest --env dev --allow-destructive
 saltcorn-project-sync verify-live --adapter rest
+saltcorn-project-sync deploy --adapter rest --env test --yes
 saltcorn-project-sync backup --env prod
 saltcorn-project-sync record-deployment --env prod --status success
 saltcorn-project-sync doctor
@@ -57,6 +58,23 @@ menu, settings, and plugins count as drift; entries present only in the live
 tenant are reported as `orphaned` and are never treated as drift. Exits
 non-zero when drift is detected, which makes it suitable as a post-apply
 convergence check in scripts and CI.
+
+`deploy` is the one-command routine deployment: it connects, checks Saltcorn
+compatibility, exports and plans, prints a compact plan summary, asks for
+confirmation unless `--yes` is present (and refuses to proceed non-interactively
+without `--yes`), creates and verifies a real backup, applies the plan,
+refreshes Saltcorn state (REST adapter), verifies zero post-apply drift with
+the same logic as `verify-live` (skip with `--skip-verify` only for debugging),
+records a local deployment, and — when the adapter supports it (currently
+`rest`) — persists an authoritative record on the target's deployment ledger.
+It prints one JSON receipt with a `steps` array documenting exactly what ran
+and exits non-zero if any step, including post-apply convergence, failed.
+
+Pass `--request-id ID` to make a `deploy` invocation genuinely idempotent:
+the same ID reused after a retry (e.g. a CI job re-run after a network
+failure) reuses the same target ledger row (`created:false` on the retry)
+instead of being rejected as a conflicting request. Without `--request-id`,
+each invocation is treated as a new deployment.
 
 Plugin lock changes are planned from `plugins.lock.json`: missing locked plugins produce `install_plugin`, version/source drift produces `update_plugin`, and extra live plugins are preserved as `orphaned_plugin` warnings unless an explicit `drop_plugin` intent exists.
 
