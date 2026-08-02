@@ -13,6 +13,9 @@ Endpoints:
 - `POST /project-sync/api/apply`
 - `POST /project-sync/api/backup`
 - `POST /project-sync/api/restore`
+- `GET /project-sync/api/deployments`
+- `GET /project-sync/api/deployments/:deploymentId`
+- `POST /project-sync/api/deployments`
 
 Legacy GET aliases also exist:
 
@@ -43,7 +46,7 @@ The plugin exposes a project-first UI:
 - `/project-sync/plan-preview?project_id=:id`: project-scoped plan preview.
 - `/project-sync/approvals?project_id=:id`: project-scoped approval matrix.
 - `/project-sync/settings?project_id=:id`: project-scoped settings and health checks.
-- `/project-sync/deployments`: deployment history from the project metadata log.
+- `/project-sync/deployments`: authoritative deployment history from the target-side ledger, with an explicit local-cache fallback when the ledger is unavailable.
 
 `/project-sync`, `/project-sync/status`, and `/project-sync/health` redirect to `Projects` for backward compatibility. Project-scoped views use the selected project's `root_path`; a server-level `SALTCORN_PROJECT_SYNC_PROJECT_ROOT` is only a fallback.
 
@@ -61,3 +64,33 @@ The plugin exposes a project-first UI:
 - reports the apply as failed when the native adapter skips any planned operation
 
 The plugin endpoints use the conservative native adapter internally and are best-effort until validated against the target Saltcorn version.
+
+## Deployment ledger
+
+The target tenant owns an internal `_sc_ps_deployments` table. It stores only a
+sanitized deployment receipt: deployment/request IDs, project/version/commit,
+environment, status, operation and warning summaries, backup receipt,
+convergence result, rollback relation, and a bounded redacted error. Desired
+state, credentials, tokens, commands, and arbitrary request metadata are never
+stored.
+
+Ledger writes require the configured Bearer token. `request_id` is mandatory
+and idempotent: replaying the same sanitized record returns the existing row;
+reusing the ID for different data returns HTTP 409. Example:
+
+```json
+{
+  "request_id": "buyapp-test-deploy-000001",
+  "deployment_id": "deploy-000001",
+  "kind": "deployment",
+  "project": "buyapp",
+  "version": "0.1.1",
+  "commit": "a7f0096",
+  "environment": "test",
+  "status": "verified",
+  "operations": { "count": 1, "by_action": { "create_field": 1 } },
+  "warnings": { "count": 1 },
+  "backup": { "id": "backup-id", "sha256": "<64 hex characters>" },
+  "convergence": { "ok": true, "operations": 0, "warnings": 1 }
+}
+```

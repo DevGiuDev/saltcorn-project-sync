@@ -5,6 +5,8 @@ const { routes, deploymentsTable, authorized, applyAuthorized, validateApplyPayl
 test("plugin exposes project sync routes", () => {
   assert(routes.some((route) => route.url === "/project-sync"));
   assert(routes.some((route) => route.url === "/project-sync/deployments"));
+  assert(routes.some((route) => route.url === "/project-sync/api/deployments" && route.method === "get"));
+  assert(routes.some((route) => route.url === "/project-sync/api/deployments" && route.method === "post"));
   assert(routes.some((route) => route.url === "/project-sync/status"));
   assert(routes.some((route) => route.url === "/project-sync/live-diff"));
   assert(routes.some((route) => route.url === "/project-sync/plan-preview"));
