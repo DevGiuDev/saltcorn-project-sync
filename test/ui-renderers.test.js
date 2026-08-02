@@ -71,6 +71,7 @@ test("project renderers keep card links, forms, and scope action hooks", () => {
     roles: [],
     plugins: [],
     menu: [],
+    settings: [{ name: "site_name", included: true, auto_detected: "stable_setting" }],
   });
   assert.match(detailHtml, /project-sync\/git\?project_id=7/);
   assert.match(detailHtml, /project-sync\/live-diff\?project_id=7/);
@@ -81,6 +82,9 @@ test("project renderers keep card links, forms, and scope action hooks", () => {
   assert.match(detailHtml, /id="btn-write-disk"/);
   assert.match(detailHtml, /id="btn-save-scope"/);
   assert.match(detailHtml, /id="scope-tabs"/);
+  assert.match(detailHtml, /id="scope-settings-tab"/);
+  assert.match(detailHtml, /data-kind="settings" data-name="site_name"/);
+  assert.match(detailHtml, /stable setting/);
   assert.match(detailHtml, /fa-code-branch/);
   assert.match(detailHtml, /class="badge bg-primary">crm<\/span>/);
   assert.match(detailHtml, /scope-toggle/);

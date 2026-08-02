@@ -1,7 +1,7 @@
 const { describe, it } = require("node:test");
 const assert = require("node:assert");
 const { zipToBuffer } = require("../lib/zip");
-const { autoDetectScope, tenantObjectsFromState, dedupeScopeEntries, BUILTIN_VIEW_TEMPLATES, DEV_PLUGIN_PATTERNS } = require("../lib/project-setup");
+const { autoDetectScope, tenantObjectsFromState, applyScopeToTenantObjects, dedupeScopeEntries, BUILTIN_VIEW_TEMPLATES, DEV_PLUGIN_PATTERNS } = require("../lib/project-setup");
 const { canonicalStringify } = require("../lib/canonical-json");
 
 describe("zip", () => {
@@ -107,13 +107,35 @@ describe("project-setup auto-detect", () => {
       triggers: [{ name: "nightly", action: "run_js" }],
       roles: [{ name: "admin", role: "admin", id: 1 }],
       plugins: [{ name: "saltcorn-project-sync", version: "0.1.0" }, { name: "charts", version: "0.1.0" }],
+      settings: [
+        { name: "site_name", value: "Acme" },
+        { key: "timezone", value: "Europe/Madrid" },
+      ],
     });
     assert.equal(tenant.tables[0].field_count, 1);
     assert.equal(tenant.roles[0].name, "admin");
+    assert.deepStrictEqual(tenant.settings, [{ name: "site_name" }, { name: "timezone" }]);
     const scope = autoDetectScope(tenant);
     assert.ok(scope.some((e) => e.object_type === "roles" && e.object_name === "admin"));
     assert.ok(scope.some((e) => e.object_type === "plugins" && e.object_name === "charts" && e.included));
     assert.ok(scope.some((e) => e.object_type === "plugins" && e.object_name === "saltcorn-project-sync" && !e.included));
+    assert.ok(scope.some((e) => e.object_type === "settings" && e.object_name === "site_name" && e.included));
+    assert.ok(scope.some((e) => e.object_type === "settings" && e.object_name === "timezone" && e.included));
+  });
+
+  it("applies saved scope state to menu and settings UI candidates", () => {
+    const tenant = tenantObjectsFromState({
+      menu: [{ name: "menu_items", items: [] }],
+      settings: [{ name: "site_name", value: "Acme" }],
+    });
+    applyScopeToTenantObjects(tenant, [
+      { object_type: "menu", object_name: "menu_items", included: true, auto_detected: "" },
+      { object_type: "settings", object_name: "site_name", included: false, auto_detected: "manual" },
+    ]);
+    assert.equal(tenant.menu[0].included, true);
+    assert.equal(tenant.menu[0].has_scope, true);
+    assert.equal(tenant.settings[0].included, false);
+    assert.equal(tenant.settings[0].auto_detected, "manual");
   });
 
   it("deduplicates tenant objects and posted scope entries by type/name", () => {
@@ -126,9 +148,14 @@ describe("project-setup auto-detect", () => {
         { name: "saltcorn-project-sync", version: "0.1.0" },
         { name: "saltcorn-project-sync", version: "0.1.0" },
       ],
+      settings: [
+        { name: "site_name", value: "First" },
+        { name: "site_name", value: "Second" },
+      ],
     });
     assert.equal(tenant.triggers.length, 1);
     assert.equal(tenant.plugins.length, 1);
+    assert.equal(tenant.settings.length, 1);
 
     const entries = dedupeScopeEntries([
       { object_type: "views", object_name: "dashboard", included: true },
