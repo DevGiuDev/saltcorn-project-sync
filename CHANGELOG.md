@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.4.0 - 2026-08-02
+
+### Added
+
+- `deploy --env <env>`: one-command deployment orchestration chaining connect,
+  compatibility check, live export and plan, a compact plan summary,
+  interactive confirmation (or `--yes` for CI), backup creation and
+  verification, apply, Saltcorn state refresh, automatic post-apply
+  convergence verification, local deployment recording, and idempotent
+  target-side ledger recording.
+- `--request-id` for `deploy`: an explicit, caller-chosen idempotency key so a
+  retried deployment attempt reuses the same target ledger row instead of
+  being rejected as a conflicting request.
+
 ## 0.3.0 - 2026-08-02
 
 ### Added
