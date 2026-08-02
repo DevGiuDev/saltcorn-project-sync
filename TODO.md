@@ -24,8 +24,8 @@ See [`docs/deployment-workflow-plan.md`](docs/deployment-workflow-plan.md).
   - [x] Record project/version/commit, environment, operation summary, backup receipt, status, and convergence result.
   - [x] Add idempotent REST list/detail/write support.
   - [x] Keep local JSON only as an explicit fallback/client cache.
-  - [ ] Publish and validate the ledger on the BuyApp target.
-- [ ] Backfill the successful BuyApp `deploy-000001` deployment after the target ledger is available.
+  - [x] Publish and validate the ledger on the BuyApp target.
+- [x] Backfill the successful BuyApp `deploy-000001` deployment after the target ledger is available.
 - [x] Update the Deployments panel to display target records, backup details, failures, and convergence status.
 
 ## UI-first setup and configuration

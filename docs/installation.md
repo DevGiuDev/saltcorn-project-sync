@@ -81,6 +81,41 @@ explicit duplicate-row cleanup and a restart. Treat this as an operational
 rollback: always take a backup and match on name, source, location, and version
 before removing either record.
 
+### Upgrading an already-installed npm plugin to a newer version
+
+`saltcorn install-plugin --npm saltcorn-project-sync` always inserts a new
+`_sc_plugins` row; it does not update an existing npm row in place. Running it
+again for a version upgrade produces two rows with the same name/source/location
+and different versions, which is the same ambiguous-load-order problem as
+above.
+
+Saltcorn's own admin "Upgrade" action avoids this by loading the existing
+`Plugin` record and calling its `upgrade_version` method, which updates that
+row's version in place instead of inserting a new one. For a scripted/headless
+upgrade, reproduce that call directly against the already-running Saltcorn
+process (module resolution requires a working directory inside the Saltcorn
+install tree, e.g. `/opt/saltcorn` in the reference image):
+
+```bash
+cd /path/to/saltcorn/install # module resolution needs this to find @saltcorn/data
+node <<'NODE'
+(async () => {
+  const Plugin = require("@saltcorn/data/models/plugin");
+  const plugin = await Plugin.findOne({ name: "saltcorn-project-sync" });
+  if (!plugin) throw new Error("Plugin not found");
+  if (plugin.source !== "npm") throw new Error(`Expected npm source, got ${plugin.source}`);
+  await plugin.upgrade_version((p, force) => Plugin.loadPlugin(p, force), "0.2.0");
+  const after = await Plugin.findOne({ name: "saltcorn-project-sync" });
+  if (after.id !== plugin.id) throw new Error("Upgrade created a new row instead of updating in place");
+  console.log(after.version);
+})().catch((err) => { console.error(err); process.exit(1); });
+NODE
+```
+
+Always back up the database first, verify the version and row `id` are
+unchanged after the upgrade, then restart Saltcorn and re-check
+`/project-sync/api/info` and convergence.
+
 ## Pinned Git install
 
 A pinned Git checkout remains available for plugin development and emergency
