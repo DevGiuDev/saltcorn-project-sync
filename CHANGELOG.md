@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.1.1 - 2026-08-02
+
+### Fixed
+
+- Correct Saltcorn npm installation instructions: Saltcorn 1.6/1.7 requires a
+  bare package name and does not accept `package@version` in `--npm`.
+- Document registry-version verification and the pinned Git rollback path.
+
 ## 0.1.0 - 2026-08-02
 
 Initial public preview.

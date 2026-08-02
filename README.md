@@ -9,18 +9,22 @@ Supported Saltcorn versions: **1.6.0 and newer**.
 Install the companion CLI from npm:
 
 ```bash
-npm install --global saltcorn-project-sync@0.1.0
+npm install --global saltcorn-project-sync@0.1.1
 saltcorn-project-sync --help
 ```
 
 Install the plugin into Saltcorn from npm:
 
 ```bash
-saltcorn install-plugin --npm saltcorn-project-sync@0.1.0
+npm view saltcorn-project-sync version  # verify the expected release first
+saltcorn install-plugin --npm saltcorn-project-sync
 ```
 
-For production, pin an explicit version instead of installing an unversioned
-latest release. See [Installation](docs/installation.md) and
+Saltcorn 1.6/1.7 accepts only a bare package name in `--npm`; passing
+`package@version` returns a registry 404. Verify the registry version before
+installation and confirm the installed version afterwards. The companion CLI
+can and should remain pinned to an explicit version. See
+[Installation](docs/installation.md) and
 [Production safety](docs/production-safety.md).
 
 ## Goal

@@ -32,7 +32,7 @@ The Git panel can also be opened from a specific project that already has `root_
 Install a pinned CLI version:
 
 ```bash
-npm install --global saltcorn-project-sync@0.1.0
+npm install --global saltcorn-project-sync@0.1.1
 saltcorn-project-sync --help
 ```
 
@@ -43,14 +43,23 @@ saltcorn-project-sync
 sc-project-sync
 ```
 
-Install the same version as a Saltcorn plugin:
+Install the npm package as a Saltcorn plugin:
 
 ```bash
-saltcorn install-plugin --npm saltcorn-project-sync@0.1.0
+expected=0.1.1
+test "$(npm view saltcorn-project-sync version)" = "$expected"
+saltcorn install-plugin --npm saltcorn-project-sync
 ```
 
+Saltcorn 1.6/1.7 treats the `--npm` value strictly as a package name. Do not
+append `@version`: Saltcorn constructs a registry URL from that value and the
+request fails with 404. Its installer selects the package version and records
+that installed version in `_sc_plugins`; verify it after installation. For a
+fully pinned emergency rollback, use the local Git installation below until a
+version-selecting install command is available.
+
 Restart Saltcorn after the first install or an upgrade so route changes are
-loaded. Production environments should pin an explicit package version.
+loaded.
 
 ## Pinned Git install
 

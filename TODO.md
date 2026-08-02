@@ -40,12 +40,12 @@ See [`docs/deployment-workflow-plan.md`](docs/deployment-workflow-plan.md).
 
 ## Packaging and distribution — milestone 0
 
-- [ ] Publish `saltcorn-project-sync` to the npm registry.
+- [x] Publish `saltcorn-project-sync` to the npm registry.
   - [x] Add a strict package file allowlist and `prepublishOnly` validation.
   - [x] Test the packed artifact in a clean Node installation.
   - [x] Test installation from the packed artifact in a disposable Saltcorn tenant.
   - [x] Keep the companion CLI available as `saltcorn-project-sync` and `sc-project-sync`.
-  - [ ] Publish version `0.1.0` from a tagged commit.
+  - [x] Publish version `0.1.0` from a tagged commit.
   - [ ] Configure npm provenance/trusted publishing for subsequent releases.
 - [ ] Migrate the VPS from a local-directory install to a pinned npm install and verify rollback.
 - [ ] Register and validate the npm package in the Saltcorn Module Store so administrators can install it from Saltcorn without cloning a repository.
