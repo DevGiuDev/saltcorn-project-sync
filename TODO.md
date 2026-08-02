@@ -27,7 +27,30 @@ See [`docs/deployment-workflow-plan.md`](docs/deployment-workflow-plan.md).
 - [ ] Backfill the successful BuyApp `deploy-000001` deployment after the target ledger is available.
 - [ ] Update the Deployments panel to display target records, backup details, failures, and convergence status.
 
+## UI-first setup and configuration
+
+- [ ] Make a normal synchronization environment configurable from the Saltcorn plugin UI with minimal local file editing.
+  - Configure project root/repository, environment, adapter, base URL, branch/tenant mapping, and transport.
+  - Configure or select backup/restore hooks and validate them from the UI.
+  - Add a setup wizard with connection, repository, backup, and permissions health checks.
+  - Define clear precedence between project UI configuration, environment profiles, and process environment variables.
+  - Never export synchronization credentials or operational configuration into project JSON.
+  - Use masked/encrypted or reference-based secret handling; do not persist plaintext tokens in Git, logs, deployment history, or ordinary settings.
+  - Support token generation, one-time display, rotation, and revocation from the UI where secure storage is available.
+
+## Packaging and distribution
+
+- [ ] Publish `saltcorn-project-sync` to the npm registry.
+  - Add a strict package file allowlist and `prepublishOnly` validation.
+  - Test installation from `npm pack` in a clean Saltcorn tenant.
+  - Publish versioned releases from signed/tagged commits with npm provenance where available.
+  - Keep the companion CLI available as `saltcorn-project-sync` and `sc-project-sync`.
+- [ ] Register and validate the npm package in the Saltcorn Module Store so administrators can install it from Saltcorn without cloning a repository.
+- [ ] Document upgrades, compatibility, rollback, release cadence, and pinned-version production installs.
+
 ## Integration coverage
 
 - [ ] Cover plan → backup → apply → refresh → convergence → history in Docker integration tests.
 - [ ] Cover backup failure, apply failure, duplicate request IDs, and post-apply drift.
+- [ ] Test the UI setup wizard without hand-edited synchronization files.
+- [ ] Test the packed npm artifact and Module Store installation path on a clean tenant.

@@ -101,12 +101,23 @@ It applied `create_field test_tabla.sync_test_note` with backup
 - Support `--yes` for CI and preserve interactive confirmation by default.
 - Return non-zero exit codes for backup, apply, refresh, or convergence failure.
 
-### Phase 4 — Environment profiles and transport
+### Phase 4 — UI-first environment configuration and transport
 
-- Extend `environments/<env>.json` with non-secret adapter/base URL/transport
+- Add a project setup wizard in the Saltcorn UI so a normal environment can be
+  prepared without hand-editing synchronization files.
+- Configure project root/repository, environment, adapter, base URL,
+  branch/tenant mapping, transport, and backup/restore hooks from project
   settings.
-- Keep bearer tokens and HTTP Basic credentials in environment variables or a
-  secret manager, never project JSON.
+- Add connection, repository, permission, and backup health checks with a
+  clear ready/not-ready result.
+- Define and display precedence between project UI configuration,
+  `environments/<env>.json`, and process environment variables.
+- Extend environment profiles with non-secret adapter/base URL/transport
+  settings.
+- Keep secrets out of project JSON. Use masked/encrypted storage or references
+  to environment variables/secret managers, depending on runtime support.
+- Support token generation, one-time display, rotation, and revocation without
+  writing tokens to logs or deployment history.
 - Support direct HTTPS and an optional managed SSH tunnel transport so users do
   not manually open tunnels.
 - Document CI usage and token rotation.
@@ -118,6 +129,20 @@ It applied `create_field test_tabla.sync_test_note` with backup
 - Add Docker integration coverage for plan → backup → apply → convergence →
   target deployment record.
 - Test backup failure, apply failure, duplicate request ID, and post-apply drift.
+- Test setup from the UI without hand-edited synchronization files.
+
+### Phase 6 — npm and Saltcorn Module Store distribution
+
+- Prepare a minimal npm artifact with an explicit file allowlist and
+  `prepublishOnly` lint/test/package checks.
+- Validate `npm pack` installation in a clean Saltcorn tenant and validate the
+  companion CLI binaries from the packed artifact.
+- Publish `saltcorn-project-sync` from a versioned Git tag, with npm provenance
+  and release notes where available.
+- Register and test the package in the Saltcorn Module Store so administrators
+  can install and upgrade it from Saltcorn without cloning the repository.
+- Document pinned production installs, upgrades, rollback, compatibility, and
+  the release cadence.
 
 ## Acceptance criteria
 
@@ -131,3 +156,7 @@ It applied `create_field test_tabla.sync_test_note` with backup
 - Post-apply convergence is automatic and must be visible in history.
 - Environment-specific settings such as `base_url` remain preserved without
   blocking deployment.
+- A standard environment can be configured and validated from the plugin UI
+  without manually editing synchronization files.
+- The plugin can be installed from the Saltcorn Module Store and the CLI can be
+  installed from the same tested npm release.
