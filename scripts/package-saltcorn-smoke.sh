@@ -58,3 +58,19 @@ const result = JSON.parse(process.argv[1]);
 if (result.ok !== true) throw new Error(`Plugin info failed: ${process.argv[1]}`);
 console.log(`Packed plugin Saltcorn smoke passed: ${result.saltcorn_version || "version reported"}`);
 ' "$response"
+
+token="${SALTCORN_PROJECT_SYNC_API_TOKEN:-scps-docker-token}"
+package_version="$(node -p "require('$artifact_dir/unpacked/package/package.json').version")"
+ledger_payload="$(printf '{\"request_id\":\"package-smoke-001\",\"deployment_id\":\"deploy-package-smoke\",\"project\":\"package-smoke\",\"version\":\"%s\",\"environment\":\"test\",\"status\":\"verified\",\"operations\":{\"count\":0},\"warnings\":{\"count\":0},\"convergence\":{\"ok\":true,\"operations\":0}}' "$package_version")"
+created="$(curl -fsS -H "Authorization: Bearer $token" -H 'Content-Type: application/json' -d "$ledger_payload" "http://127.0.0.1:$port/project-sync/api/deployments")"
+replayed="$(curl -fsS -H "Authorization: Bearer $token" -H 'Content-Type: application/json' -d "$ledger_payload" "http://127.0.0.1:$port/project-sync/api/deployments")"
+listed="$(curl -fsS -H "Authorization: Bearer $token" "http://127.0.0.1:$port/project-sync/api/deployments")"
+node -e '
+const created = JSON.parse(process.argv[1]);
+const replayed = JSON.parse(process.argv[2]);
+const listed = JSON.parse(process.argv[3]);
+if (!created.ok || created.created !== true) throw new Error(`Ledger create failed: ${process.argv[1]}`);
+if (!replayed.ok || replayed.created !== false) throw new Error(`Ledger replay failed: ${process.argv[2]}`);
+if (!listed.ok || listed.records.length !== 1) throw new Error(`Ledger list failed: ${process.argv[3]}`);
+console.log("Packed plugin deployment ledger smoke passed");
+' "$created" "$replayed" "$listed"

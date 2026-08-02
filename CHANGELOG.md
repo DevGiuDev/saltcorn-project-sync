@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.2.0 - 2026-08-02
+
+### Added
+
+- Authoritative target-side deployment ledger with sanitized, idempotent REST
+  list/detail/write endpoints.
+- Deployment receipts for project/version/commit, operation and warning
+  summaries, backup evidence, status, rollback relation, and convergence.
+- Target-backed Deployments panel with explicit local-cache fallback.
+
+### Fixed
+
+- Redact credentials from Git output and remote URLs.
+- Preserve quoted commit messages and return actionable noninteractive Git
+  authentication errors.
+- Reject credentials embedded in Git remote URLs.
+
 ## 0.1.1 - 2026-08-02
 
 ### Fixed

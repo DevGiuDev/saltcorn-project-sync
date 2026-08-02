@@ -9,7 +9,7 @@ Supported Saltcorn versions: **1.6.0 and newer**.
 Install the companion CLI from npm:
 
 ```bash
-npm install --global saltcorn-project-sync@0.1.1
+npm install --global saltcorn-project-sync@0.2.0
 saltcorn-project-sync --help
 ```
 
@@ -54,7 +54,7 @@ The plugin exposes a project-first web UI under `/project-sync`:
 | Area | Purpose |
 |---|---|
 | Projects | Define and manage project scopes |
-| Deployments | Deployment history log |
+| Deployments | Authoritative target-side deployment ledger with backup and convergence evidence |
 | Project → Scope | Choose which Saltcorn objects belong to the project |
 | Project → Git | Stage, commit, push, pull and branch management |
 | Project → Live Diff | Bidirectional diff and sync between live tenant and files |

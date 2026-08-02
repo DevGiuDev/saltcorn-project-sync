@@ -25,6 +25,7 @@ const required = [
   "index.js",
   "bin/saltcorn-project-sync.js",
   "lib/plugin/index.js",
+  "lib/plugin/deployment-ledger.js",
   "lib/tenant-adapters.js",
   "viewtemplates/project-sync-console.js",
   "scripts/install-clone-schema.js",
@@ -56,7 +57,7 @@ const unexpected = files.filter((file) => forbidden.some((pattern) => pattern.te
 const errors = [];
 if (missing.length) errors.push(`Missing required package files: ${missing.join(", ")}`);
 if (unexpected.length) errors.push(`Forbidden package files: ${unexpected.join(", ")}`);
-if (metadata.unpackedSize > 750_000) errors.push(`Unpacked package is too large: ${metadata.unpackedSize} bytes`);
+if (metadata.unpackedSize > 800_000) errors.push(`Unpacked package is too large: ${metadata.unpackedSize} bytes`);
 if (errors.length) throw new Error(errors.join("\n"));
 
 console.log(`Package check passed: ${files.length} files, ${metadata.unpackedSize} unpacked bytes.`);
