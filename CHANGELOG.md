@@ -6,18 +6,16 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
-- Treat tenant objects without a persisted scope row as pending and unchecked;
-  the Scope view now explains and highlights the required save decision.
-- Warn before leaving Scope with unsaved checkbox changes and show a pending
-  count for newly detected objects.
+- Add newly detected tenant objects to project scope automatically, retaining
+  the automatic exclusion policy for development-only objects.
 - Share the dark ink/cyan panel-header palette across project pages, including
   Git, Deploy, Live Diff, Settings and nested diff panels.
 - Highlight pending pushes, optionally push immediately after a UI commit, and
-  record portable deployment scope from staged project objects.
+  update portable deployment scope automatically from staged project objects.
 - Recognize an object file introduced by the selected legacy commit as an
   explicit scope addition while keeping earlier unmanaged Git objects excluded.
-- Limit UI scope recording to the object files staged in that commit, preserving
-  older legacy Git objects until they are explicitly selected.
+- Limit automatic portable-scope updates to object files staged in that commit,
+  preserving older legacy Git objects until they are explicitly changed.
 
 ## 0.5.0 - 2026-08-03
 

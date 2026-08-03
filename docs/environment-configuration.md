@@ -306,15 +306,13 @@ con una versión actual del plugin y confirma ese `scope` en Git para migrar el
 proyecto. A partir de ahí, la incorporación forma parte del digest y se guarda
 después de que APPLY y VERIFY converjan.
 
-En **Scope**, un objeto que existe en el tenant pero todavía no tiene una fila
-en el scope local aparece desmarcado con la etiqueta `new · save` y cuenta como
-`Pending save`. No se considera incluido por defecto. Selecciónalo (o usa
-`Toggle all`) y pulsa **Save scope** para persistir la decisión; el botón cambia
-a amarillo mientras hay cambios de scope sin guardar y el navegador avisa si se
-intenta abandonar la página. Si prefieres mantenerlo fuera del proyecto, guarda
-la casilla desmarcada: así queda registrada la exclusión y deja de aparecer como
-pendiente. **Re-detect** vuelve a calcular el conjunto automático y lo persiste
-de inmediato, por lo que debe usarse como una acción deliberada.
+En **Scope**, un objeto nuevo del tenant se incorpora automáticamente al scope
+local con la etiqueta `auto-added`. Las exclusiones automáticas se conservan
+(por ejemplo, objetos de desarrollo), pero no hace falta aceptar uno a uno los
+objetos normales recién creados. Usa las casillas sólo para excluir un objeto de
+forma deliberada; el botón **Save scope** persiste esos cambios manuales y se
+marca en amarillo mientras queden sin guardar. **Re-detect** mantiene disponible
+una reevaluación explícita de las reglas automáticas para todo el proyecto.
 
 ### 5. Confirmar y seguir el resultado
 
@@ -353,17 +351,18 @@ stage/unstage individual o por grupo, editor de commit, sincronización remota e
 historial. `Pull` también exige fast-forward para evitar merges accidentales.
 Si la rama tiene commits sin enviar, **Push _N_** se resalta en ámbar. Al crear
 un commit se puede marcar **Push after commit** para enviarlo a `origin` como
-parte de la misma acción. Cuando se han staged archivos de `objects/`,
-**Record object scope** queda marcado por defecto: genera
-el bloque portable `scope` a partir del índice que se va a confirmar y añade el
-manifest al commit. No lee objetos sin stage, de modo que el manifest nunca
-referencia por accidente un fichero que no viaje en ese commit.
+parte de la misma acción. Si el commit incluye archivos de `objects/`, la
+interfaz actualiza automáticamente el bloque portable `scope` y añade el
+manifest al commit. No hay un segundo check que decidir: el scope sólo incorpora
+los objetos que están en el índice de ese commit, por lo que el manifest nunca
+referencia por accidente un fichero que no viaje con él.
 
 Como transición para proyectos con commits antiguos sin `scope`, Deploy acepta
 el objeto JSON que haya sido **añadido por el commit seleccionado** como una
 inclusión explícita y lo muestra como `track_scope`. Los demás objetos legacy
-continúan sin gestionar; no se adoptan por estar presentes en Git. El siguiente
-commit con **Record object scope** migra el proyecto por completo.
+continúan sin gestionar; no se adoptan por estar presentes en Git. Para adoptar
+uno de ellos, basta modificarlo, incluirlo en stage y hacer commit: se añadirá
+automáticamente al scope portable.
 
 El proceso equivalente por CLI sigue disponible. En desarrollo puede omitirse
 el backup de forma explícita:

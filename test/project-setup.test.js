@@ -1,7 +1,7 @@
 const { describe, it } = require("node:test");
 const assert = require("node:assert");
 const { zipToBuffer } = require("../lib/zip");
-const { autoDetectScope, tenantObjectsFromState, applyScopeToTenantObjects, dedupeScopeEntries, BUILTIN_VIEW_TEMPLATES, DEV_PLUGIN_PATTERNS } = require("../lib/project-setup");
+const { autoDetectScope, tenantObjectsFromState, applyScopeToTenantObjects, newScopeEntries, dedupeScopeEntries, BUILTIN_VIEW_TEMPLATES, DEV_PLUGIN_PATTERNS } = require("../lib/project-setup");
 const { canonicalStringify } = require("../lib/canonical-json");
 
 describe("zip", () => {
@@ -138,12 +138,14 @@ describe("project-setup auto-detect", () => {
     assert.equal(tenant.settings[0].auto_detected, "manual");
   });
 
-  it("keeps tenant objects without a scope row pending instead of including them", () => {
+  it("identifies newly detected tenant objects for automatic scope inclusion", () => {
     const tenant = tenantObjectsFromState({ tables: [{ name: "new_table", fields: [] }] });
-    applyScopeToTenantObjects(tenant, []);
-    assert.equal(tenant.tables[0].included, false);
-    assert.equal(tenant.tables[0].has_scope, false);
-    assert.equal(tenant.tables[0].scope_pending, true);
+    const additions = newScopeEntries(tenant, []);
+    assert.deepEqual(additions, [{ object_type: "tables", object_name: "new_table", included: true, auto_detected: "new_object" }]);
+    applyScopeToTenantObjects(tenant, additions);
+    assert.equal(tenant.tables[0].included, true);
+    assert.equal(tenant.tables[0].has_scope, true);
+    assert.equal(tenant.tables[0].scope_pending, false);
   });
 
   it("deduplicates tenant objects and posted scope entries by type/name", () => {

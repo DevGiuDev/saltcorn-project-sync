@@ -96,12 +96,11 @@ test("project renderers keep card links, forms, and scope action hooks", () => {
   assert.match(detailHtml, /scope-toggle/);
   assert.match(detailHtml, /scps-col-filter/);
 
-  const pendingHtml = renderProjectDetail({ id: 8, name: "Pending", slug: "pending" }, {
-    tables: [{ name: "new_table", included: false, has_scope: false, scope_pending: true }],
+  const autoAddedHtml = renderProjectDetail({ id: 8, name: "Automatic", slug: "automatic" }, {
+    tables: [{ name: "new_table", included: true, has_scope: true, auto_detected: "new_object" }],
   });
-  assert.match(pendingHtml, /new · save/);
-  assert.match(pendingHtml, /Pending save/);
-  assert.match(pendingHtml, /new tenant object detected/);
+  assert.match(autoAddedHtml, /auto-added/);
+  assert.match(autoAddedHtml, /New tenant objects are added to this project scope automatically/);
 });
 
 test("plan renderer shows targets for settings and menu entries", () => {
@@ -152,7 +151,8 @@ test("git renderer exposes a client-style workspace and action hooks", () => {
   assert.match(gitHtml, /project-sync\/settings\?project_id=7/);
   assert.match(gitHtml, /id="btn-git-commit"/);
   assert.match(gitHtml, /id="git-commit-push"/);
-  assert.match(gitHtml, /id="git-commit-sync-scope"[^>]*checked/);
+  assert.doesNotMatch(gitHtml, /git-commit-sync-scope/);
+  assert.match(gitHtml, /added to the portable deployment scope automatically/);
   assert.match(gitHtml, /btn-git-push[^>]*btn-warning/);
   assert.match(gitHtml, /id="btn-git-pull"/);
   assert.match(gitHtml, /id="btn-create-branch"/);

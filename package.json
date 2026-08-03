@@ -48,7 +48,7 @@
     "test:package:saltcorn": "./scripts/package-saltcorn-smoke.sh",
     "release:check:full": "npm run release:check && npm run test:package:saltcorn"
   },
-  "version": "0.5.2",
+  "version": "0.5.3",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/DevGiuDev/saltcorn-project-sync.git"
