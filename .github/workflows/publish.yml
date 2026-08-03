@@ -1,0 +1,78 @@
+name: Publish
+
+# Publish saltcorn-project-sync to the npm registry using npm trusted
+# publishing (GitHub Actions OIDC). No long-lived npm token is required:
+# the npm registry exchanges this workflow's OIDC token for short-lived
+# publish credentials, so the npm package must have this repository and
+# this exact workflow path (`.github/workflows/publish.yml`) configured as
+# a trusted publisher.
+#
+# If you configured an npm environment name when registering the trusted
+# publisher, set `environment:` on the job below to that exact name. If you
+# left the environment blank on npm, do not add it here either.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Run every gate and pack the tarball but skip the real upload
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: publish-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: npm
+          registry-url: https://registry.npmjs.org
+
+      # Trusted publishing (GitHub OIDC -> npm) requires npm CLI >= 11.5.1.
+      # The npm bundled with Node 22 is older, so upgrade it explicitly.
+      - name: Upgrade npm for trusted publishing
+        run: npm install -g npm@^11.5.1
+
+      - name: Show npm/node versions
+        run: |
+          node --version
+          npm --version
+
+      - run: npm ci --ignore-scripts
+
+      - name: Release gate (lint, unit tests, package checks, Saltcorn smoke)
+        run: npm run release:check:full
+
+      - name: Verify tag matches package version
+        run: |
+          tag="${GITHUB_REF#refs/tags/}"
+          version="$(node -p "require('./package.json').version")"
+          if [ -n "$tag" ] && [ "v$version" != "$tag" ]; then
+            echo "::error::Git tag '$tag' does not match package.json version 'v$version'" >&2
+            exit 1
+          fi
+          echo "Releasing version $version (tag: ${tag:-none, workflow_dispatch})"
+
+      - name: Publish to npm (trusted publishing via OIDC, with provenance)
+        if: ${{ github.event_name != 'workflow_dispatch' || !inputs.dry_run }}
+        run: npm publish --provenance --access public
+
+      - name: Publish dry-run (pack only, no upload)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+        run: npm publish --dry-run --access public

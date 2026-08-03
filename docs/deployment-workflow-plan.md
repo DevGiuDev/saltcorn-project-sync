@@ -146,14 +146,16 @@ parallel if store review is external.
 
 ### Phase 6 — Distribution hardening and Module Store
 
-- Configure npm provenance/trusted publishing for releases after the initial
-  bootstrap publication.
-- Register and test the package in the Saltcorn Module Store so administrators
+- [x] Publish from tagged commits via npm trusted publishing (GitHub Actions
+  OIDC) in `.github/workflows/publish.yml`, with the full release gate and
+  provenance; no long-lived npm token required.
+- [x] Document pinned production installs, upgrades, rollback, compatibility,
+  and the release cadence.
+- [ ] Register and test the package in the Saltcorn Module Store so administrators
   can install and upgrade it from Saltcorn without cloning the repository.
-- Automate signed/tagged releases, release notes, compatibility checks, and
-  package installation tests.
-- Document pinned production installs, upgrades, rollback, compatibility, and
-  the release cadence.
+  **Blocked on user action:** email Rom with the npm package details and request
+  store registration.
+- [ ] Add release notes automation (GitHub Releases from the changelog).
 
 ## Acceptance criteria
 

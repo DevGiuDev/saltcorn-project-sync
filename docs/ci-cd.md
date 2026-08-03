@@ -53,6 +53,33 @@ npm run test:integration:docker
 
 It starts `saltcorn/saltcorn:latest` plus Postgres, resets the schema, installs this plugin from the local checkout, runs REST smoke checks, and tears the stack down. See `docs/integration-docker.md`.
 
+## npm release (trusted publishing)
+
+Releases are published to npm from tagged commits via the
+[`.github/workflows/publish.yml`](../.github/workflows/publish.yml) workflow,
+using npm trusted publishing (GitHub Actions OIDC). No long-lived npm token
+is stored as a repository secret: the npm registry exchanges this workflow's
+OIDC token for short-lived publish credentials.
+
+Prerequisites, configured once on the npm side:
+
+- the package `saltcorn-project-sync` has this repository and the workflow
+  path `.github/workflows/publish.yml` registered as a trusted publisher;
+- if an npm *environment* was specified during registration, the same
+  `environment:` name must be added to the `publish` job.
+
+The release flow is therefore:
+
+1. Bump `version` in `package.json`, update `CHANGELOG.md`, commit.
+2. Tag the commit: `git tag -a v<version> -m "Release <version>"` and push the tag.
+3. The `Publish` workflow runs `release:check:full` (lint, unit tests, package
+   checks, and a disposable Saltcorn/Postgres package smoke), verifies the tag
+   matches `package.json`, then runs `npm publish --provenance --access public`.
+
+`workflow_dispatch` with `dry_run=true` runs every gate and packs the tarball
+without uploading, which is useful for validating trusted-publishing wiring
+before cutting a real tag.
+
 ## Production gate
 
 Production deploys should require:
