@@ -78,8 +78,15 @@ jobs:
 
       - name: Publish to npm (trusted publishing via OIDC, with provenance)
         if: ${{ github.event_name != 'workflow_dispatch' || !inputs.dry_run }}
+        # Force the trusted-publishing (OIDC) path: npm must NOT find a token,
+        # otherwise it would publish with a long-lived token instead of the
+        # short-lived credentials minted from this workflow's OIDC token.
+        env:
+          NODE_AUTH_TOKEN: ""
         run: npm publish --provenance --access public
 
       - name: Publish dry-run (pack only, no upload)
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+        env:
+          NODE_AUTH_TOKEN: ""
         run: npm publish --dry-run --access public
