@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.4.5 - 2026-08-03
+
+### Fixed
+
+- Use static same-origin UI confirmation and cancellation endpoints so
+  Saltcorn's literal-prefix `noCsrf` lookup does not reject parameterized
+  deployment request URLs.
+- Report non-JSON server responses with an actionable UI error instead of
+  exposing a browser `JSON.parse` exception.
+
 ## 0.4.4 - 2026-08-03
 
 ### Fixed

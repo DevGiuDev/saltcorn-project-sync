@@ -22,8 +22,8 @@ Endpoints:
 - `POST /project-sync/api/tokens/:id/revoke`
 - `GET /project-sync/api/projects/:id/deploy/context`
 - `POST /project-sync/api/projects/:id/deploy/preview`
-- `POST /project-sync/api/deployment-requests/:requestId/confirm`
-- `POST /project-sync/api/deployment-requests/:requestId/cancel`
+- `POST /project-sync/api/deployment-requests/confirm`
+- `POST /project-sync/api/deployment-requests/cancel`
 - `GET /project-sync/api/deployment-requests/:requestId`
 
 Legacy GET aliases also exist:
@@ -43,6 +43,11 @@ Authorization: Bearer <token>
 ```
 
 Anonymous API access is denied even when `SALTCORN_PROJECT_SYNC_API_TOKEN` is not configured. Session-authenticated browser writes are accepted only when their `Origin`/`Referer` host matches the request host. Apply, backup, restore, and state refresh are Bearer-only operations. Interactive deployment request endpoints are stricter in the opposite direction: they require a same-origin Saltcorn administrator session and reject Bearer-only clients.
+
+Interactive confirmation and cancellation send `request_id` in the JSON body.
+Their write URLs are deliberately static because Saltcorn matches `noCsrf`
+routes as literal URL prefixes; authorization remains protected by the admin
+session and same-origin checks.
 
 ## UI pages
 

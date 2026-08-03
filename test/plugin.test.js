@@ -22,7 +22,12 @@ test("plugin exposes project sync routes", () => {
   assert(routes.some((route) => route.url === "/project-sync/api/tokens" && route.method === "post"));
   assert(routes.some((route) => route.url === "/project-sync/projects/:id/deploy"));
   assert(routes.some((route) => route.url === "/project-sync/api/projects/:id/deploy/preview"));
-  assert(routes.some((route) => route.url === "/project-sync/api/deployment-requests/:requestId/confirm"));
+  const confirmRoute = routes.find((route) => route.url === "/project-sync/api/deployment-requests/confirm");
+  const cancelRoute = routes.find((route) => route.url === "/project-sync/api/deployment-requests/cancel");
+  assert.equal(confirmRoute?.noCsrf, true);
+  assert.equal(cancelRoute?.noCsrf, true);
+  assert(!confirmRoute.url.includes(":"), "noCsrf write URL must be a literal Saltcorn prefix");
+  assert(!cancelRoute.url.includes(":"), "noCsrf write URL must be a literal Saltcorn prefix");
 });
 
 test("plan preview renders safe UI summaries", () => {

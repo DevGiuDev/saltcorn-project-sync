@@ -255,8 +255,8 @@ whether it originated from UI, CLI or CI.
 GET  /project-sync/projects/:id/deploy
 GET  /project-sync/api/projects/:id/deploy/context?environment=dev
 POST /project-sync/api/projects/:id/deploy/preview
-POST /project-sync/api/deployment-requests/:requestId/confirm
-POST /project-sync/api/deployment-requests/:requestId/cancel
+POST /project-sync/api/deployment-requests/confirm
+POST /project-sync/api/deployment-requests/cancel
 GET  /project-sync/api/deployment-requests/:requestId
 ```
 
