@@ -508,9 +508,7 @@ function bucketNonEmpty(bucket) {
   return Boolean(bucket.created.length || bucket.updated.length || bucket.orphaned.length);
 }
 
-function computeLiveDrift(desired, actual) {
-  const { summarizeDiff } = require("../lib/plugin/helpers");
-  const diff = summarizeDiff(desired, actual);
+function bucketPluginDiff(diff = {}) {
   const fields = (diff.tables?.fieldDiffs || [])
     .map((entry) => ({ table: entry.table, ...bucketDiff(entry.fields) }))
     .filter(bucketNonEmpty);
@@ -531,12 +529,34 @@ function computeLiveDrift(desired, actual) {
   return { hasDrift, drift };
 }
 
+function computeLiveDrift(desired, actual) {
+  const { summarizeDiff } = require("../lib/plugin/helpers");
+  return bucketPluginDiff(summarizeDiff(desired, actual));
+}
+
+// Authoritative convergence check. Prefers the plugin's /api/live-diff (which
+// applies the configured project scope, matching `plan` and the Deployments
+// panel) and only recomputes locally when the adapter has no live-diff endpoint
+// (e.g. the command adapter used in tests). Recomputing without scope produces
+// false drift on real projects that carry tenant-only objects, so the remote
+// endpoint is the source of truth whenever it is available.
+async function verifyConvergence(adapter, desired) {
+  if (typeof adapter.liveDiff === "function") {
+    const response = await adapter.liveDiff();
+    if (response && response.ok !== false && response.diff) {
+      return bucketPluginDiff(response.diff);
+    }
+    throw new Error((response && response.error) || "live-diff endpoint did not return a diff");
+  }
+  const actual = normalizeProjectExport(await adapter.exportProject({ referenceTables: (desired || {}).reference_data || [] }));
+  return computeLiveDrift(desired || {}, actual);
+}
+
 async function commandVerifyLive() {
   const adapterName = arg("--adapter", process.env.SALTCORN_PROJECT_SYNC_ADAPTER || "command");
   const adapter = getTenantAdapter(adapterName);
   const desired = loadProjectState();
-  const actual = normalizeProjectExport(await adapter.exportProject({ referenceTables: desired.reference_data || [] }));
-  const { hasDrift, drift } = computeLiveDrift(desired, actual);
+  const { hasDrift, drift } = await verifyConvergence(adapter, desired);
   const result = { ok: !hasDrift, adapter: adapter.name || adapterName, drift };
   process.stdout.write(canonicalStringify(result));
   if (hasDrift) process.exit(5);
@@ -846,12 +866,12 @@ async function commandDeploy() {
   }
   steps.push({ step: "refresh", ok: true, refreshed: stateRefreshed });
 
-  // 6) Verify post-apply convergence
+  // 6) Verify post-apply convergence (authoritative: uses the plugin's
+  // live-diff, which applies the project scope, so it agrees with `plan`).
   let convergence = null;
   if (!skipVerify) {
     try {
-      const postActual = normalizeProjectExport(await adapter.exportProject({ referenceTables: desired.reference_data || [] }));
-      const { hasDrift, drift } = computeLiveDrift(desired, postActual);
+      const { hasDrift, drift } = await verifyConvergence(adapter, desired);
       convergence = {
         ok: !hasDrift,
         drift_count: countDriftEntries(drift),
@@ -892,7 +912,15 @@ async function commandDeploy() {
     // different deployment and be rejected as a request_id conflict.
     const explicitRequestId = arg("--request-id", null);
     const requestId = explicitRequestId || `${env}-${currentGitCommit() || "nocommit"}-${projectVersion || "noversion"}-${deploymentRecord.id}`;
-    const ledgerDeploymentId = explicitRequestId ? `deploy-${explicitRequestId}` : deploymentRecord.id;
+    // A fresh checkout restarts the local deployment counter at deploy-000001,
+    // which would collide with any backfilled or previously-recorded ledger
+    // row. Without an explicit --request-id (the stable idempotency key), make
+    // the target-side deployment_id unique per invocation while still
+    // referencing the local record, so retries never conflict with history.
+    const _d = new Date();
+    const _pad = (n) => String(n).padStart(2, "0");
+    const stamp = `${_d.getUTCFullYear()}${_pad(_d.getUTCMonth() + 1)}${_pad(_d.getUTCDate())}T${_pad(_d.getUTCHours())}${_pad(_d.getUTCMinutes())}${_pad(_d.getUTCSeconds())}Z`;
+    const ledgerDeploymentId = explicitRequestId ? `deploy-${explicitRequestId}` : `${deploymentRecord.id}-${stamp}`;
     try {
       const response = await adapter.recordDeployment({
         request_id: requestId,
