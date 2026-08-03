@@ -22,6 +22,7 @@ targets production.
 | `tenant` | Saltcorn tenant/schema to operate on | Final target tenant |
 | `token_env` | Name of the local/CI variable holding the target API token | Secret store of the CLI runner; token authenticates the target |
 | `backup_policy` | Whether a backup is `optional` or `required`; `test`/`prod` always force `required` | Final deployment target |
+| `ui_mode` | Navigation role: `full`, `workspace`, or `deployment` | Saltcorn server displaying the plugin UI |
 | `backup_hook_env` / `restore_hook_env` | Name of a variable containing a backup/restore command | Process that performs the operation: VPS for UI/native or REST target; CLI runner for `command` |
 | `transport` and `ssh_*` | Network path from the CLI runner to the target | CLI runner and bastion/network path |
 
@@ -65,7 +66,8 @@ Supported non-secret profile keys include:
   "restore_hook_env": "BUYAPP_RESTORE_COMMAND",
   "tenant": "public",
   "token_env": "BUYAPP_PROJECT_SYNC_TOKEN",
-  "transport": "direct"
+  "transport": "direct",
+  "ui_mode": "deployment"
 }
 ```
 
@@ -272,13 +274,21 @@ confirmados en el portátil no forman parte del plan.
 
 En el tenant de destino abre **Project Sync → Projects → Deploy**:
 
-1. selecciona `dev` y la ref `develop` (o pega un tag/SHA);
+1. comprueba la rama y el target que la pantalla toma de la configuración;
 2. activa o desactiva el backup según la política anterior;
-3. pulsa **Generate deployment plan**.
+3. pulsa **Review changes**.
 
 Generate ejecuta automáticamente `git fetch --prune origin` antes de resolver
-la rama remota. No usa `git pull`: el VPS obtiene el último commit publicado
-sin mezclar ni modificar su working tree.
+la rama remota. Si esa rama coincide con la rama activa y el checkout está
+limpio, aplica un `merge --ff-only`, equivalente a un pull sin merges. Así el
+plan inmutable y Live Diff leen la misma revisión. Un checkout sucio o una rama
+divergente bloquean la previsualización con una instrucción para resolverlo en
+Git; nunca se descartan cambios locales.
+
+La rama configurada es la opción recomendada y no hay que escribirla. El
+selector avanzado enumera ramas remotas, tags y commits recientes para
+rollouts controlados. El target tampoco es texto libre: identifica el perfil
+que aporta tenant, políticas de seguridad y backup. No cambia el contenido Git.
 
 El VPS resuelve un SHA exacto, valida el proyecto, exporta el tenant actual y
 muestra operaciones seguras, destructivas, warnings y blockers. Los objetos
@@ -313,6 +323,24 @@ BACKUP → APPLY → REFRESH → VERIFY → RECEIPT
 La pantalla actualiza el progreso y enlaza al ledger autoritativo de
 **Project Sync → Deployments**. Los estados terminales distinguen backup,
 apply, refresh, verificación con drift y fallo de verificación.
+
+### Modos de interfaz
+
+En **Settings → Interface role** se puede adaptar la navegación al cometido de
+la instalación:
+
+- `Deployment server`: Deploy y Settings; el historial sigue disponible en la
+  navegación global. Oculta Scope, Git, Live Diff, Plan y Approvals.
+- `Workspace`: Scope, Git, Live Diff, Plan y Settings.
+- `Full`: muestra todas las herramientas.
+
+También puede fijarse con `SALTCORN_PROJECT_SYNC_UI_MODE` usando `deployment`,
+`workspace` o `full`. Esta opción sólo organiza la interfaz; no relaja permisos,
+confirmaciones, políticas de backup ni controles destructivos.
+
+La pantalla Git usa un flujo de cliente convencional: ramas, working tree con
+stage/unstage individual o por grupo, editor de commit, sincronización remota e
+historial. `Pull` también exige fast-forward para evitar merges accidentales.
 
 El proceso equivalente por CLI sigue disponible. En desarrollo puede omitirse
 el backup de forma explícita:

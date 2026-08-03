@@ -41,10 +41,12 @@ laptop edit → commit → push
 VPS fetch exact commit → preview → confirm → deploy
 ```
 
-The target must not switch or pull its active plugin/project working tree while
-preparing a deployment. It should fetch and materialize the selected commit in
-a temporary isolated worktree, then load desired state from that immutable
-directory. Test and production deployments only accept committed revisions.
+The target never switches branches while preparing a deployment. It fetches
+the selected ref and, only when it is the clean active branch, fast-forwards
+that checkout to the matching remote commit. Desired state is still loaded
+from a temporary immutable directory. Dirty or divergent checkouts block the
+preview instead of being overwritten. Test and production deployments only
+accept committed revisions.
 
 An optional `working_tree` source may be retained for local/dev diagnostics,
 clearly marked as unaudited and unavailable to CI, test and production.
@@ -69,7 +71,7 @@ shows the resolved commit SHA; a branch name alone is never the approved unit.
 The server:
 
 1. acquires a short preview lock;
-2. fetches the selected ref without changing the active checkout;
+2. fetches the selected ref and safely fast-forwards a matching clean branch;
 3. creates an isolated checkout at the resolved SHA;
 4. validates manifest, intents, dependencies and environment policy;
 5. exports current tenant state;

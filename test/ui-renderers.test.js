@@ -33,6 +33,7 @@ test("settings renderer is project-scoped and includes health", () => {
   assert.match(html, /Generate token/);
   assert.match(html, /window\.SCPS_SETTINGS_PROJECT_ID = 7/);
   assert.match(html, /id="project-setting-backup-policy"/);
+  assert.match(html, /id="project-setting-ui-mode"/);
   assert.match(html, /alert-danger/);
 });
 
@@ -119,7 +120,7 @@ test("plan renderer shows targets for settings and menu entries", () => {
   assert.match(html, /menu_items/);
 });
 
-test("git renderer preserves project navigation and JS hooks", () => {
+test("git renderer exposes a client-style workspace and action hooks", () => {
   const gitHtml = renderGitPage({
     projectRoot: "/srv/project",
     status: {
@@ -145,11 +146,14 @@ test("git renderer preserves project navigation and JS hooks", () => {
   assert.match(gitHtml, /id="btn-git-commit"/);
   assert.match(gitHtml, /id="btn-git-pull"/);
   assert.match(gitHtml, /id="btn-create-branch"/);
-  assert.match(gitHtml, /class="btn btn-outline-primary btn-sm py-0 px-1 stage-btn"/);
-  assert.match(gitHtml, /class="btn btn-outline-secondary btn-sm py-0 px-2 checkout-btn"/);
+  assert.match(gitHtml, /class="scps-git-layout"/);
+  assert.match(gitHtml, /stage-btn/);
+  assert.match(gitHtml, /unstage-btn/);
+  assert.match(gitHtml, /checkout-btn/);
   assert.match(gitHtml, /window\.SCPS_GIT_PROJECT_ID = 7/);
-  assert.match(gitHtml, /<code>\/srv\/project<\/code>/);
-  assert.match(gitHtml, /scps-col-filter/);
+  assert.match(gitHtml, /scps-repo-path[^>]*>\/srv\/project/);
+  assert.match(gitHtml, /Working tree/);
+  assert.match(gitHtml, /Recent history/);
 });
 
 test("deploy renderer exposes immutable preview and confirmation workflow", () => {
@@ -160,8 +164,18 @@ test("deploy renderer exposes immutable preview and confirmation workflow", () =
   assert.match(html, /id="btn-deploy-preview"/);
   assert.match(html, /id="btn-deploy-confirm"/);
   assert.match(html, /id="deploy-scope-changes"/);
-  assert.match(html, /id="btn-deploy-environment"/);
-  assert.match(html, /Origin refreshes automatically/);
+  assert.match(html, /id="deploy-source-ref" class="form-select"/);
+  assert.match(html, /Configured branch/);
+  assert.match(html, /This profile selects tenant, safety policy and backup provider/);
+  assert.doesNotMatch(html, /id="btn-deploy-environment"/);
   assert.doesNotMatch(html, /id="deploy-fetch-source"/);
   assert.match(html, /window\.SCPS_DEPLOY/);
+});
+
+test("deployment navigation hides workspace-only tools", () => {
+  const html = renderDeployPage({ project: { id: 7, name: "CRM" }, environment: "dev", defaultRef: "main", uiMode: "deployment" });
+  assert.match(html, /project-sync\/projects\/7\/deploy/);
+  assert.match(html, /project-sync\/settings\?project_id=7/);
+  assert.doesNotMatch(html, /project-sync\/git\?project_id=7/);
+  assert.doesNotMatch(html, /project-sync\/live-diff\?project_id=7/);
 });

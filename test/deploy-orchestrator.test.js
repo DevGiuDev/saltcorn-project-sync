@@ -6,7 +6,7 @@ const path = require("node:path");
 const { execFileSync } = require("node:child_process");
 
 const { prepareDeployment, executeDeployment, backupPolicy, digest } = require("../lib/deploy-orchestrator");
-const { validateGitRef, scopedSafeGitArgs, resolveGitCommit, withGitCommitCheckout } = require("../lib/git-source");
+const { validateGitRef, scopedSafeGitArgs, fetchRemote, resolveGitCommit, withGitCommitCheckout, fastForwardWorkingBranch, listDeploymentRefs } = require("../lib/git-source");
 const { assertTargetTenant, persistScopeAdditions } = require("../lib/plugin/deploy-service");
 
 function projectFixture() {
@@ -197,4 +197,34 @@ test("Git source scopes safe.directory to the configured repository", () => {
     "-c", `safe.directory=${path.join(root, ".git")}`,
   ]);
   assert.deepEqual(args.slice(4), ["status", "--short"]);
+});
+
+test("deployment source fast-forwards a clean matching working branch", () => {
+  const dir = projectFixture();
+  execFileSync("git", ["init", "-b", "main"], { cwd: dir, stdio: "ignore" });
+  execFileSync("git", ["config", "user.email", "test@example.com"], { cwd: dir });
+  execFileSync("git", ["config", "user.name", "Test"], { cwd: dir });
+  execFileSync("git", ["add", "."], { cwd: dir });
+  execFileSync("git", ["commit", "-m", "initial"], { cwd: dir, stdio: "ignore" });
+  const remote = fs.mkdtempSync(path.join(os.tmpdir(), "scps-remote-"));
+  execFileSync("git", ["init", "--bare"], { cwd: remote, stdio: "ignore" });
+  execFileSync("git", ["remote", "add", "origin", remote], { cwd: dir });
+  execFileSync("git", ["push", "-u", "origin", "main"], { cwd: dir, stdio: "ignore" });
+  execFileSync("git", ["symbolic-ref", "HEAD", "refs/heads/main"], { cwd: remote });
+  const writer = fs.mkdtempSync(path.join(os.tmpdir(), "scps-writer-"));
+  execFileSync("git", ["clone", remote, writer], { stdio: "ignore" });
+  execFileSync("git", ["config", "user.email", "test@example.com"], { cwd: writer });
+  execFileSync("git", ["config", "user.name", "Test"], { cwd: writer });
+  fs.writeFileSync(path.join(writer, "revision.txt"), "next\n");
+  execFileSync("git", ["add", "revision.txt"], { cwd: writer });
+  execFileSync("git", ["commit", "-m", "next"], { cwd: writer, stdio: "ignore" });
+  execFileSync("git", ["push", "origin", "main"], { cwd: writer, stdio: "ignore" });
+  fetchRemote(dir);
+  const source = resolveGitCommit(dir, "main");
+  const sync = fastForwardWorkingBranch(dir, source);
+  assert.equal(sync.status, "fast_forwarded");
+  assert.equal(execFileSync("git", ["rev-parse", "HEAD"], { cwd: dir, encoding: "utf8" }).trim(), source.commit);
+  assert(listDeploymentRefs(dir, "main").some((option) => option.value === "main"));
+  fs.appendFileSync(path.join(dir, "saltcorn.project.json"), "\n");
+  assert.throws(() => fastForwardWorkingBranch(dir, source), /Working tree is dirty/);
 });

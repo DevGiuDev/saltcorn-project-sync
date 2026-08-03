@@ -9,11 +9,12 @@ const { runSetupHealth } = require("../lib/plugin/setup-health");
 const { applyAuthorized } = require("../lib/plugin/auth");
 const { resolveBackupProvider, publicBackupProvider, runBackupProvider } = require("../lib/backup");
 
-test("operational config accepts references and rejects plaintext secrets", () => {
-  assert.deepEqual(normalizeOperationalConfig({ adapter: "rest", base_url: "https://saltcorn.test", token_env: "SCPS_TEST_TOKEN", ignored: "value" }), {
-    adapter: "rest", base_url: "https://saltcorn.test", token_env: "SCPS_TEST_TOKEN",
+test("operational config accepts references and interface roles but rejects plaintext secrets", () => {
+  assert.deepEqual(normalizeOperationalConfig({ adapter: "rest", base_url: "https://saltcorn.test", token_env: "SCPS_TEST_TOKEN", ui_mode: "deployment", ignored: "value" }), {
+    adapter: "rest", base_url: "https://saltcorn.test", token_env: "SCPS_TEST_TOKEN", ui_mode: "deployment",
   });
   assert.throws(() => normalizeOperationalConfig({ base_url: "http://remote.test" }), /HTTPS/);
+  assert.throws(() => normalizeOperationalConfig({ ui_mode: "mystery" }), /ui_mode/);
 });
 
 test("stored token hashes authorize without retaining plaintext", () => {

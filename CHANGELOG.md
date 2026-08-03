@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.5.0 - 2026-08-03
+
+### Added
+
+- Add full, workspace and deployment-server interface roles so target servers
+  can expose a focused Deploy/Settings workflow without Git authoring tools.
+- Offer configured branches, remote branches, tags and recent commits as safe
+  deployment source choices instead of requiring free-text refs.
+
+### Changed
+
+- Redesign Git as a three-pane client with branches, grouped stage/unstage,
+  commit composition, remote controls and compact history.
+- Present the configured deployment source and target as explained defaults;
+  alternate refs and environments are selected from known values.
+- Fast-forward a clean matching target checkout after fetch so Live Diff and
+  Deploy use the same committed files. Dirty or divergent trees are preserved
+  and block automatic synchronization.
+- Make manual Git pulls fast-forward-only.
+
 ## 0.4.8 - 2026-08-03
 
 ### Fixed
