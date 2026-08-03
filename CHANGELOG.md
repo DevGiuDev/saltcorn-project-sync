@@ -16,6 +16,8 @@ All notable changes to this project will be documented in this file.
   record portable deployment scope from staged project objects.
 - Recognize an object file introduced by the selected legacy commit as an
   explicit scope addition while keeping earlier unmanaged Git objects excluded.
+- Limit UI scope recording to the object files staged in that commit, preserving
+  older legacy Git objects until they are explicitly selected.
 
 ## 0.5.0 - 2026-08-03
 

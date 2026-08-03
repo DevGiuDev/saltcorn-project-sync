@@ -353,8 +353,8 @@ stage/unstage individual o por grupo, editor de commit, sincronización remota e
 historial. `Pull` también exige fast-forward para evitar merges accidentales.
 Si la rama tiene commits sin enviar, **Push _N_** se resalta en ámbar. Al crear
 un commit se puede marcar **Push after commit** para enviarlo a `origin` como
-parte de la misma acción. Cuando se han staged archivos de `objects/` o
-`plugins.lock.json`, **Record object scope** queda marcado por defecto: genera
+parte de la misma acción. Cuando se han staged archivos de `objects/`,
+**Record object scope** queda marcado por defecto: genera
 el bloque portable `scope` a partir del índice que se va a confirmar y añade el
 manifest al commit. No lee objetos sin stage, de modo que el manifest nunca
 referencia por accidente un fichero que no viaje en ese commit.

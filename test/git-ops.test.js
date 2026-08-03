@@ -52,6 +52,20 @@ test("commit can record portable scope from staged object files", () => {
   assert.equal(syncPortableScope(dir).ok, true);
 });
 
+test("scope recording does not adopt older unstaged legacy objects", () => {
+  const dir = repo();
+  fs.mkdirSync(path.join(dir, "objects", "views"), { recursive: true });
+  fs.writeFileSync(path.join(dir, "saltcorn.project.json"), JSON.stringify({ name: "Demo", version: "1.0.0" }));
+  fs.writeFileSync(path.join(dir, "objects", "views", "legacy.json"), JSON.stringify({ name: "legacy", viewtemplate: "List" }));
+  execFileSync("git", ["add", "."], { cwd: dir });
+  assert.equal(gitCommit(dir, "chore: initial project").ok, true);
+  fs.writeFileSync(path.join(dir, "objects", "views", "new_view.json"), JSON.stringify({ name: "new_view", viewtemplate: "List" }));
+  execFileSync("git", ["add", "objects/views/new_view.json"], { cwd: dir });
+  assert.equal(gitCommit(dir, "feat: add new view", { syncScope: true }).ok, true);
+  const manifest = JSON.parse(fs.readFileSync(path.join(dir, "saltcorn.project.json"), "utf8"));
+  assert.deepEqual(manifest.scope.objects.views, ["new_view"]);
+});
+
 test("git remote output never exposes embedded credentials", () => {
   const dir = repo();
   execFileSync("git", ["remote", "add", "origin", "https://user:secret@example.test/private.git"], { cwd: dir });
