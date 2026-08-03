@@ -2,6 +2,21 @@
 
 Saltcorn Project Sync exports deterministic JSON under `objects/` plus `plugins.lock.json` and optional reference data.
 
+## Deployment scope
+
+The object files present in an immutable Git commit are the versioned desired
+scope for that deployment. This avoids maintaining a second list of object
+names that can drift away from `objects/**` and `plugins.lock.json`.
+
+The target tenant keeps a local scope for export selection and live-drift
+observation. During a deployment, that local scope may add observations, but it
+cannot exclude an object committed as desired state. Deploy previews list any
+committed objects missing from the target scope, bind those additions into the
+plan digest, and persist them only after successful convergence.
+
+Absence from the commit remains non-destructive: tenant objects not represented
+in Git are preserved unless an explicit change intent authorizes an operation.
+
 ## Stable references
 
 Tenant-local numeric IDs are not stable across Saltcorn tenants. During normalization, known references are resolved to names before IDs are stripped:

@@ -283,6 +283,12 @@ que sólo existen en el tenant se conservan como huérfanos; su ausencia en Git
 no autoriza borrarlos. El request guarda digests y resúmenes, no el estado
 completo ni secretos.
 
+Los archivos `objects/**` y `plugins.lock.json` presentes en ese SHA constituyen
+el scope deseado versionado. Si alguno todavía no pertenece al scope local del
+tenant, Deploy lo muestra como `track_scope` junto al plan; no hace falta salir
+a Live Diff ni a Scope. Esa incorporación forma parte del digest confirmado y
+sólo se guarda en el tenant después de que APPLY y VERIFY hayan convergido.
+
 ### 5. Confirmar y seguir el resultado
 
 Revisa el commit, las operaciones y la identidad del plan. Si existen cambios

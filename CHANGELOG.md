@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.4.6 - 2026-08-03
+
+### Changed
+
+- Treat object files in the selected Git commit as the authoritative desired
+  deployment scope, while retaining tenant-local scope for export and drift
+  observation.
+- Show target scope additions directly in Deploy, bind them into the reviewed
+  plan digest, and persist them after successful convergence.
+
 ## 0.4.5 - 2026-08-03
 
 ### Fixed

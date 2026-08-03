@@ -7,7 +7,7 @@ const { execFileSync } = require("node:child_process");
 
 const { prepareDeployment, executeDeployment, backupPolicy, digest } = require("../lib/deploy-orchestrator");
 const { validateGitRef, scopedSafeGitArgs, resolveGitCommit, withGitCommitCheckout } = require("../lib/git-source");
-const { assertTargetTenant } = require("../lib/plugin/deploy-service");
+const { assertTargetTenant, persistScopeAdditions } = require("../lib/plugin/deploy-service");
 
 function projectFixture() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "scps-orchestrator-"));
@@ -58,6 +58,48 @@ test("shared orchestrator previews, applies, refreshes and verifies", async () =
   assert.equal(adapter.backups, 0);
   assert(events.some((event) => event.step === "backup" && event.status === "skipped"));
   assert(events.some((event) => event.step === "verify" && event.status === "complete"));
+});
+
+test("committed objects extend target scope and remain plan-bound", async () => {
+  const dir = projectFixture();
+  const adapter = mutableAdapter();
+  const prepared = await prepareDeployment({ sourceDir: dir, adapter, env: "dev", scopeSet: new Set() });
+  assert.deepEqual(prepared.plan.scope_additions, [
+    { object_type: "tables", object_name: "customers" },
+  ]);
+  assert(prepared.plan.operations.some((operation) => operation.action === "create_table" && operation.table === "customers"));
+  assert.equal(prepared.summary.scope_additions, 1);
+  assert.notEqual(prepared.plan_digest, digest({ ...prepared.plan, scope_additions: [] }));
+});
+
+test("target scope cannot veto an already converged committed object", async () => {
+  const dir = projectFixture();
+  const adapter = mutableAdapter();
+  await adapter.applyPlan({
+    desired: {
+      tables: [{ name: "customers", fields: [{ name: "id", type: "Integer" }] }],
+      views: [], pages: [], triggers: [], roles: [], menu: [], settings: [], plugins: [],
+    },
+  });
+  const prepared = await prepareDeployment({ sourceDir: dir, adapter, env: "dev", scopeSet: new Set() });
+  assert.equal(prepared.summary.count, 0);
+  assert.equal(prepared.summary.scope_additions, 1);
+  assert.deepEqual(prepared.plan.scope_additions, [
+    { object_type: "tables", object_name: "customers" },
+  ]);
+});
+
+test("target scope persistence occurs through explicit additions", async () => {
+  const calls = [];
+  const count = await persistScopeAdditions(7, [
+    { object_type: "tables", object_name: "customers" },
+    { object_type: "views", object_name: "customer_list" },
+  ], async (...args) => calls.push(args));
+  assert.equal(count, 2);
+  assert.deepEqual(calls, [
+    [7, "tables", "customers", true],
+    [7, "views", "customer_list", true],
+  ]);
 });
 
 test("required backup is performed and must be verifiable", async () => {
