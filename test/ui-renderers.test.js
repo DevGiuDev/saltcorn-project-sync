@@ -161,5 +161,7 @@ test("deploy renderer exposes immutable preview and confirmation workflow", () =
   assert.match(html, /id="btn-deploy-confirm"/);
   assert.match(html, /id="deploy-scope-changes"/);
   assert.match(html, /id="btn-deploy-environment"/);
+  assert.match(html, /Origin refreshes automatically/);
+  assert.doesNotMatch(html, /id="deploy-fetch-source"/);
   assert.match(html, /window\.SCPS_DEPLOY/);
 });

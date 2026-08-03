@@ -4,15 +4,35 @@ Saltcorn Project Sync exports deterministic JSON under `objects/` plus `plugins.
 
 ## Deployment scope
 
-The object files present in an immutable Git commit are the versioned desired
-scope for that deployment. This avoids maintaining a second list of object
-names that can drift away from `objects/**` and `plugins.lock.json`.
+Full exports write a portable scope to `saltcorn.project.json`:
+
+```json
+{
+  "scope": {
+    "version": 1,
+    "objects": {
+      "tables": ["customers"],
+      "views": ["customer_list"],
+      "plugins": ["base"]
+    }
+  }
+}
+```
+
+This explicit allowlist is the versioned desired scope for the deployment.
+Object files outside it may remain in an old repository without silently
+becoming managed deployment input.
 
 The target tenant keeps a local scope for export selection and live-drift
-observation. During a deployment, that local scope may add observations, but it
-cannot exclude an object committed as desired state. Deploy previews list any
-committed objects missing from the target scope, bind those additions into the
-plan digest, and persist them only after successful convergence.
+observation. During a deployment, it may add observations but cannot veto an
+object named by the committed manifest scope. Deploy previews list additions,
+bind them into the plan digest, and persist them after convergence.
+
+For legacy commits without `scope`, the target allowlist remains authoritative.
+The preview additionally infers Git objects that do not exist live, allowing a
+new table or view to be created without first visiting Scope. Existing live
+objects excluded by the target remain unmanaged and are reported as legacy
+scope exclusions.
 
 Absence from the commit remains non-destructive: tenant objects not represented
 in Git are preserved unless an explicit change intent authorizes an operation.

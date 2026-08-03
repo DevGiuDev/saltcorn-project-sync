@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.4.7 - 2026-08-03
+
+### Changed
+
+- Version deployment scope explicitly in the project manifest. Legacy projects
+  infer only Git objects missing from the live tenant, preserving deliberate
+  target exclusions for already-existing objects.
+- Refresh `origin` automatically before every UI deployment preview; the UI no
+  longer requires or exposes a manual fetch toggle.
+
 ## 0.4.6 - 2026-08-03
 
 ### Changed

@@ -24,3 +24,14 @@ test("validateProject detects duplicate fields", () => {
   assert.equal(result.valid, false);
   assert(result.errors.some((error) => error.includes("duplicate field x")));
 });
+
+test("validateProject rejects versioned scope without matching object files", () => {
+  const dir = tempProject();
+  fs.mkdirSync(path.join(dir, "objects", "tables"), { recursive: true });
+  writeCanonicalJson(path.join(dir, "plugins.lock.json"), { plugins: [] });
+  const manifest = defaultManifest({ name: "T", slug: "t" });
+  manifest.scope.objects.tables = ["missing_table"];
+  const result = validateProject(dir, manifest, []);
+  assert.equal(result.valid, false);
+  assert(result.errors.some((error) => error.includes("scope references tables/missing_table")));
+});

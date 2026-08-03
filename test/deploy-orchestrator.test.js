@@ -72,8 +72,32 @@ test("committed objects extend target scope and remain plan-bound", async () => 
   assert.notEqual(prepared.plan_digest, digest({ ...prepared.plan, scope_additions: [] }));
 });
 
-test("target scope cannot veto an already converged committed object", async () => {
+test("legacy target scope preserves exclusions for objects already live", async () => {
   const dir = projectFixture();
+  const adapter = mutableAdapter();
+  await adapter.applyPlan({
+    desired: {
+      tables: [{ name: "customers", fields: [{ name: "id", type: "Integer" }] }],
+      views: [], pages: [], triggers: [], roles: [], menu: [], settings: [], plugins: [],
+    },
+  });
+  const prepared = await prepareDeployment({ sourceDir: dir, adapter, env: "dev", scopeSet: new Set() });
+  assert.equal(prepared.summary.count, 0);
+  assert.equal(prepared.summary.scope_additions, 0);
+  assert.deepEqual(prepared.plan.scope_ignored, [
+    { object_type: "tables", object_name: "customers" },
+  ]);
+});
+
+test("versioned manifest scope overrides a target-local exclusion", async () => {
+  const dir = projectFixture();
+  const manifestPath = path.join(dir, "saltcorn.project.json");
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+  manifest.scope = {
+    version: 1,
+    objects: { tables: ["customers"], views: [], pages: [], triggers: [], roles: [], menu: [], settings: [], plugins: [] },
+  };
+  fs.writeFileSync(manifestPath, JSON.stringify(manifest));
   const adapter = mutableAdapter();
   await adapter.applyPlan({
     desired: {
@@ -87,6 +111,8 @@ test("target scope cannot veto an already converged committed object", async () 
   assert.deepEqual(prepared.plan.scope_additions, [
     { object_type: "tables", object_name: "customers" },
   ]);
+  assert.deepEqual(prepared.plan.scope_ignored, []);
+  assert.equal(prepared.plan.scope_source, "manifest");
 });
 
 test("target scope persistence occurs through explicit additions", async () => {

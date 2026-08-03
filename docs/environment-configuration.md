@@ -273,9 +273,12 @@ confirmados en el portátil no forman parte del plan.
 En el tenant de destino abre **Project Sync → Projects → Deploy**:
 
 1. selecciona `dev` y la ref `develop` (o pega un tag/SHA);
-2. deja activado **Fetch origin before preview**;
-3. activa o desactiva el backup según la política anterior;
-4. pulsa **Generate deployment plan**.
+2. activa o desactiva el backup según la política anterior;
+3. pulsa **Generate deployment plan**.
+
+Generate ejecuta automáticamente `git fetch --prune origin` antes de resolver
+la rama remota. No usa `git pull`: el VPS obtiene el último commit publicado
+sin mezclar ni modificar su working tree.
 
 El VPS resuelve un SHA exacto, valida el proyecto, exporta el tenant actual y
 muestra operaciones seguras, destructivas, warnings y blockers. Los objetos
@@ -283,11 +286,12 @@ que sólo existen en el tenant se conservan como huérfanos; su ausencia en Git
 no autoriza borrarlos. El request guarda digests y resúmenes, no el estado
 completo ni secretos.
 
-Los archivos `objects/**` y `plugins.lock.json` presentes en ese SHA constituyen
-el scope deseado versionado. Si alguno todavía no pertenece al scope local del
-tenant, Deploy lo muestra como `track_scope` junto al plan; no hace falta salir
-a Live Diff ni a Scope. Esa incorporación forma parte del digest confirmado y
-sólo se guarda en el tenant después de que APPLY y VERIFY hayan convergido.
+El bloque `scope` de `saltcorn.project.json`, escrito por los exports completos,
+constituye el alcance deseado versionado. Si un objeto todavía no pertenece al
+scope local del tenant, Deploy lo muestra como `track_scope`; no hace falta
+salir a Live Diff ni a Scope. En commits antiguos sin ese bloque, sólo se
+infieren automáticamente objetos que aún no existen live. La incorporación
+forma parte del digest y se guarda después de que APPLY y VERIFY converjan.
 
 ### 5. Confirmar y seguir el resultado
 

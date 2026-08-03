@@ -265,11 +265,13 @@ Bearer-only apply endpoint remains for CLI/CI. UI confirmation invokes the
 internal orchestrator and native adapter; it does not relax the generic REST
 apply authorization rule.
 
-The preview derives desired scope from the object files in the selected commit.
-Objects not yet tracked by the target tenant scope are shown in Deploy itself,
-included in the confirmed plan digest, and added to target scope only after the
-post-apply convergence check succeeds. Operators do not need to leave Deploy
-for Live Diff or Scope before applying a newly committed object.
+The preview reads portable desired scope from `saltcorn.project.json`. Objects
+not yet tracked by the target tenant are shown in Deploy itself, included in
+the confirmed plan digest, and added locally only after the post-apply
+convergence check succeeds. Legacy commits without portable scope infer only
+objects missing live; existing target exclusions are preserved. Operators do
+not need to leave Deploy for Live Diff or Scope before creating a newly
+committed object.
 
 ## CI branch flow
 

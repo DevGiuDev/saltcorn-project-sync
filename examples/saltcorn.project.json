@@ -34,6 +34,34 @@
     "min_version": "1.6.0",
     "tested_versions": []
   },
+  "scope": {
+    "objects": {
+      "menu": [
+        "menu_items"
+      ],
+      "pages": [],
+      "plugins": [
+        "base"
+      ],
+      "roles": [
+        "admin",
+        "public",
+        "staff",
+        "user"
+      ],
+      "settings": [
+        "site_name"
+      ],
+      "tables": [
+        "contacts",
+        "countries",
+        "messages"
+      ],
+      "triggers": [],
+      "views": []
+    },
+    "version": 1
+  },
   "slug": "example-project",
   "sync": {
     "last_sync": null,
