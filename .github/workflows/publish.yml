@@ -44,11 +44,12 @@ jobs:
           cache: npm
           registry-url: https://registry.npmjs.org
 
-      # Trusted publishing (GitHub OIDC -> npm) needs a recent npm CLI; the
-      # recipes that work use the latest release (currently 12.x). The npm
-      # bundled with Node 22 is older, so upgrade it explicitly.
+      # npm 12.x forces a sigstore provenance/tlog step under trusted
+      # publishing and currently fails with TLOG_CREATE_ENTRY_ERROR (409) on
+      # reproducible builds. npm 11.x performs the OIDC exchange without forcing
+      # the tlog step, so pin to the latest 11.x for trusted publishing.
       - name: Upgrade npm for trusted publishing
-        run: npm install -g npm@latest
+        run: npm install -g npm@11
 
       - name: Show npm/node versions
         run: |
