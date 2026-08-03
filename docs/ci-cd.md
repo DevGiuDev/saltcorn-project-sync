@@ -22,7 +22,7 @@ saltcorn-project-sync preflight --env test --backup --tenant-export tenant-expor
 2. Commit and open pull request.
 3. CI runs syntax/tests/project validation and optional live integration smoke tests when Saltcorn services are configured.
 4. Merge to integration branch.
-5. Deployment job runs `git pull`, creates backup, runs plan, then apply.
+5. Deployment job checks out the exact merge commit and runs one guarded deploy command.
 6. Deployment record is written with commit, environment, operation count, warnings, and backup metadata.
 
 ## Optional integration smoke tests
@@ -36,6 +36,32 @@ SALTCORN_PROJECT_SYNC_BASE_URL=https://saltcorn.example.com
 SALTCORN_PROJECT_SYNC_API_TOKEN=...
 SALTCORN_PROJECT_SYNC_ADAPTER=rest
 ```
+
+Prefer a committed non-secret environment profile plus CI-managed secrets. The
+profile below describes the remote **test target**, even though the job runs
+from a CI checkout:
+
+```json
+{
+  "adapter": "rest",
+  "base_url": "https://saltcorn.example.com",
+  "environment": "test",
+  "token_env": "PROJECT_SYNC_TEST_TOKEN",
+  "transport": "direct"
+}
+```
+
+Store `PROJECT_SYNC_TEST_TOKEN` in the CI provider's encrypted secret store. Generate and rotate it from the plugin setup page; verify the replacement with `doctor-live --env test` before revoking the old token. Never print the variable or enable shell tracing around deployment commands. See [Environment setup and precedence](environment-configuration.md).
+
+The deploy step should pass a stable idempotency key from the CI provider:
+
+```bash
+saltcorn-project-sync deploy --adapter rest --env test --yes --request-id "$CI_PIPELINE_ID-$CI_JOB_ID"
+```
+
+The target enforces the same project/environment apply lock as the UI. A push
+pipeline therefore cannot mutate the tenant concurrently with a deployment
+that an administrator confirmed in the browser.
 
 The smoke test covers live export, `doctor-live`, project validation, diff, plan, and file apply against a temporary project checkout. Guarded live apply is disabled by default; enable it only for disposable tenants:
 

@@ -20,6 +20,9 @@ const { validateSeeds, loadSeedFiles, loadMigrationFiles, planSeeds, planMigrati
 const { validateProject } = require("../lib/validator");
 const { checkPluginCompatibility, checkSaltcornCompatibility } = require("../lib/compatibility");
 const { checkSequences, fixSequences } = require("../lib/postgres-sequences");
+const { resolveEnvironmentConfig, activateEnvironmentConfig } = require("../lib/environment");
+const { withManagedTransport } = require("../lib/transport");
+const { backupPolicy } = require("../lib/deploy-orchestrator");
 
 function usage() {
   console.log(`Saltcorn Project Sync
@@ -56,7 +59,7 @@ Usage:
   saltcorn-project-sync plan-live [--adapter command|rest|native] [--env ENV] [--backup]
   saltcorn-project-sync verify-live [--adapter command|rest|native]
   saltcorn-project-sync apply [--adapter command|rest|native] [--env ENV] [--allow-destructive] [--full-output]
-  saltcorn-project-sync deploy [--adapter command|rest|native] --env ENV [--yes] [--allow-destructive] [--skip-verify] [--request-id ID]
+  saltcorn-project-sync deploy [--adapter command|rest|native] --env ENV [--yes] [--allow-destructive] [--skip-backup] [--skip-verify] [--request-id ID]
   saltcorn-project-sync restore [--adapter command|rest|native] [--deployment ID|last]
   saltcorn-project-sync list-seeds
   saltcorn-project-sync list-migrations
@@ -748,6 +751,7 @@ async function commandDeploy() {
   const env = arg("--env", "dev");
   const yes = has("--yes");
   const allowDestructive = has("--allow-destructive");
+  const skipBackup = has("--skip-backup");
   const skipVerify = has("--skip-verify");
   const adapter = getTenantAdapter(adapterName);
   const steps = [];
@@ -784,7 +788,17 @@ async function commandDeploy() {
   const tenantVersion = lastAppliedVersion();
   const intents = loadChangeIntents(process.cwd(), { sinceVersion: tenantVersion });
   const projectVersion = (manifest || {}).version || null;
-  const plan = planProject({ desired, actual, intents, env, backup: true });
+  const explicitRequestId = arg("--request-id", null);
+  const requestId = explicitRequestId || [
+    "cli", env, currentGitCommit() || "nocommit", projectVersion || "noversion", Date.now(), process.pid,
+  ].join("-").replace(/[^A-Za-z0-9._:-]/g, "-").slice(0, 128);
+  const policy = backupPolicy(env, process.env.SALTCORN_PROJECT_SYNC_BACKUP_POLICY);
+  if (skipBackup && policy === "required") {
+    steps.push({ step: "backup-policy", ok: false, error: `backup is required for ${env}` });
+    return abort(3);
+  }
+  const backupRequested = !skipBackup;
+  const plan = planProject({ desired, actual, intents, env, backup: backupRequested });
   const destructiveCount = plan.operations.filter((op) => /^(drop_|rename_|alter_)/.test(op.action || "")).length;
   steps.push({
     step: "plan",
@@ -811,16 +825,21 @@ async function commandDeploy() {
   steps.push({ step: "confirmation", ok: true, mode: yes ? "yes-flag" : "interactive" });
 
   // 3) Backup
-  let backupResult;
-  try {
-    backupResult = await adapter.backup();
-  } catch (err) {
-    steps.push({ step: "backup", ok: false, error: err.message });
-    return abort(3);
+  let backupResult = null;
+  let backupVerified = false;
+  if (backupRequested) {
+    try {
+      backupResult = await adapter.backup();
+    } catch (err) {
+      steps.push({ step: "backup", ok: false, error: err.message });
+      return abort(3);
+    }
+    backupVerified = isVerifiableBackupMetadata(backupResult);
+    steps.push({ step: "backup", ok: backupVerified, receipt: backupReceipt(backupResult) });
+    if (policy === "required" && !backupVerified) return abort(3);
+  } else {
+    steps.push({ step: "backup", ok: true, skipped: true, policy });
   }
-  const backupVerified = isVerifiableBackupMetadata(backupResult);
-  steps.push({ step: "backup", ok: backupVerified, receipt: backupReceipt(backupResult) });
-  if ((env === "prod" || env === "test") && !backupVerified) return abort(3);
 
   // 4) Apply
   const applied = applyProject({ desired, actual, intents, env, backup: backupVerified, force: false });
@@ -840,6 +859,9 @@ async function commandDeploy() {
           backup: backupVerified,
           backup_metadata: backupResult,
           allow_destructive: allowDestructive,
+          request_id: requestId,
+          project_slug: manifest.slug || manifest.name || "default",
+          source: "cli",
         })
       : await adapter.applyProject(applied.state);
   } catch (err) {
@@ -910,8 +932,6 @@ async function commandDeploy() {
     // reuses the same ledger row instead of the ever-incrementing local
     // deployment counter, which would otherwise make every retry look like a
     // different deployment and be rejected as a request_id conflict.
-    const explicitRequestId = arg("--request-id", null);
-    const requestId = explicitRequestId || `${env}-${currentGitCommit() || "nocommit"}-${projectVersion || "noversion"}-${deploymentRecord.id}`;
     // A fresh checkout restarts the local deployment counter at deploy-000001,
     // which would collide with any backfilled or previously-recorded ledger
     // row. Without an explicit --request-id (the stable idempotency key), make
@@ -1161,7 +1181,7 @@ async function commandReset() {
   if (!allOk) process.exit(6);
 }
 
-async function main() {
+async function dispatch() {
   const cmd = process.argv[2];
   if (!cmd || has("--help") || has("-h")) usage();
   else if (cmd === "init") commandInit();
@@ -1202,6 +1222,21 @@ async function main() {
     usage();
     process.exit(1);
   }
+}
+
+async function main() {
+  const cmd = process.argv[2];
+  const env = arg("--env", process.env.SALTCORN_PROJECT_SYNC_ENV || process.env.SALTCORN_PROJECT_SYNC_ENVIRONMENT || "dev");
+  const resolved = resolveEnvironmentConfig({ projectDir: process.cwd(), env });
+  activateEnvironmentConfig(resolved);
+  const liveCommands = new Set([
+    "doctor-live", "check-live", "export", "plan-live", "verify-live", "apply",
+    "deploy", "restore", "apply-seeds", "apply-migrations", "reset",
+  ]);
+  if (liveCommands.has(cmd) && !resolved.validation.valid) {
+    throw new Error(`Invalid environment profile ${env}: ${resolved.validation.errors.join("; ")}`);
+  }
+  return withManagedTransport(liveCommands.has(cmd) ? resolved.config : { transport: "direct" }, dispatch);
 }
 
 main().catch((err) => {

@@ -17,6 +17,12 @@ test("plugin exposes project sync routes", () => {
   assert(routes.some((route) => route.url === "/project-sync/api/approvals"));
   assert(routes.some((route) => route.url === "/api/project-sync/export"));
   assert(routes.some((route) => route.url === "/project-sync/api/apply"));
+  assert(routes.some((route) => route.url === "/project-sync/api/projects/:id/environment" && route.method === "post"));
+  assert(routes.some((route) => route.url === "/project-sync/api/projects/:id/setup-health"));
+  assert(routes.some((route) => route.url === "/project-sync/api/tokens" && route.method === "post"));
+  assert(routes.some((route) => route.url === "/project-sync/projects/:id/deploy"));
+  assert(routes.some((route) => route.url === "/project-sync/api/projects/:id/deploy/preview"));
+  assert(routes.some((route) => route.url === "/project-sync/api/deployment-requests/:requestId/confirm"));
 });
 
 test("plan preview renders safe UI summaries", () => {
@@ -167,6 +173,27 @@ test("authorized accepts Bearer or same-origin admin session without exposing an
   assert.equal(authorized({ method: "GET", headers: {} }), false);
   assert.equal(authorized({ method: "GET", user: { role_id: 1 }, headers: {} }), true);
 
+  if (old === undefined) delete process.env.SALTCORN_PROJECT_SYNC_API_TOKEN;
+  else process.env.SALTCORN_PROJECT_SYNC_API_TOKEN = old;
+});
+
+test("interactive deployment endpoints reject Bearer-only clients", async () => {
+  const old = process.env.SALTCORN_PROJECT_SYNC_API_TOKEN;
+  process.env.SALTCORN_PROJECT_SYNC_API_TOKEN = "cli-token";
+  const route = routes.find((entry) => entry.url === "/project-sync/api/projects/:id/deploy/preview");
+  let response;
+  const res = {
+    status(code) { return { json(body) { response = { code, body }; } }; },
+    json(body) { response = { code: 200, body }; },
+  };
+  await route.callback({
+    method: "POST",
+    headers: { authorization: "Bearer cli-token" },
+    params: { id: "1" },
+    body: {},
+  }, res);
+  assert.equal(response.code, 403);
+  assert.match(response.body.error, /administrator session/i);
   if (old === undefined) delete process.env.SALTCORN_PROJECT_SYNC_API_TOKEN;
   else process.env.SALTCORN_PROJECT_SYNC_API_TOKEN = old;
 });

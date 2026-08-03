@@ -8,7 +8,7 @@ See [`docs/deployment-workflow-plan.md`](docs/deployment-workflow-plan.md).
 - [x] Add one-command `deploy --env <env>` orchestration.
 - [x] Add automatic post-apply convergence verification.
   - Implemented as the standalone `verify-live` command, called automatically by `deploy` (skippable via `--skip-verify` for debugging).
-- [ ] Add non-secret environment profiles and managed transport configuration.
+- [x] Add non-secret environment profiles and managed transport configuration.
 - [ ] Add backup client/server compatibility checks to `doctor-live`.
 
 ## CLI output
@@ -31,14 +31,26 @@ See [`docs/deployment-workflow-plan.md`](docs/deployment-workflow-plan.md).
 
 ## UI-first setup and configuration
 
-- [ ] Make a normal synchronization environment configurable from the Saltcorn plugin UI with minimal local file editing.
-  - Configure project root/repository, environment, adapter, base URL, branch/tenant mapping, and transport.
-  - Configure or select backup/restore hooks and validate them from the UI.
-  - Add a setup wizard with connection, repository, backup, and permissions health checks.
-  - Define clear precedence between project UI configuration, environment profiles, and process environment variables.
-  - Never export synchronization credentials or operational configuration into project JSON.
-  - Use masked/encrypted or reference-based secret handling; do not persist plaintext tokens in Git, logs, deployment history, or ordinary settings.
-  - Support token generation, one-time display, rotation, and revocation from the UI where secure storage is available.
+- [x] Make a normal synchronization environment configurable from the Saltcorn plugin UI with minimal local file editing.
+  - [x] Configure project root/repository, environment, adapter, base URL, branch/tenant mapping, and transport.
+  - [x] Configure or select backup/restore hooks and validate them from the UI.
+  - [x] Add a setup wizard with connection, repository, backup, and permissions health checks.
+  - [x] Define clear precedence between project UI configuration, environment profiles, and process environment variables.
+  - [x] Never export synchronization credentials or operational configuration into project JSON.
+  - [x] Use reference-based secret handling and hashed token storage; do not persist plaintext tokens in Git, logs, deployment history, or ordinary settings.
+  - [x] Support token generation, one-time display, rotation, and revocation from the UI.
+
+## Interactive UI deployment
+
+See [`docs/ui-deployment-workflow-plan.md`](docs/ui-deployment-workflow-plan.md).
+
+- [ ] Migrate the remaining CLI/CI execution wrapper fully to the shared orchestrator.
+- [x] Preview an exact Git commit against live target state from the UI.
+- [x] Bind confirmation to short-lived desired/actual/plan digests.
+- [x] Add environment-aware backup selection and command/none provider readiness diagnostics.
+- [x] Revalidate and lock the target before apply.
+- [x] Show backup, apply, refresh, convergence, and receipt progress.
+- [ ] Test stale plans, concurrent deploys, backup policy, and CI parity.
 
 ## Packaging and distribution — milestone 0
 

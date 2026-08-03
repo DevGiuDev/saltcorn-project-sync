@@ -1,4 +1,11 @@
 {
+  "adapter": "rest",
+  "base_url": "https://saltcorn-test.example.com",
+  "backup_policy": "required",
+  "backup_hook_env": "PROJECT_SYNC_TEST_BACKUP_CMD",
   "destructive_policy": "intent_required",
-  "environment": "test"
+  "environment": "test",
+  "restore_hook_env": "PROJECT_SYNC_TEST_RESTORE_CMD",
+  "token_env": "PROJECT_SYNC_TEST_TOKEN",
+  "transport": "direct"
 }

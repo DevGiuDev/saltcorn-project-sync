@@ -137,3 +137,17 @@ test("deploy --skip-verify records ok:true even though drift would otherwise be 
   const verifyStep = body.steps.find((s) => s.step === "verify");
   assert.equal(verifyStep.skipped, true);
 });
+
+test("deploy may skip an optional dev backup but never a required production backup", () => {
+  const dir = tmpDir();
+  initProject(dir);
+  writeProjectFile(dir, "tables", "users", { name: "users", fields: [{ name: "id", type: "Integer" }] });
+
+  const dev = run(["deploy", "--adapter", "command", "--env", "dev", "--yes", "--skip-backup", "--skip-verify"], { cwd: dir, env: baseEnv({ SALTCORN_PROJECT_SYNC_BACKUP_CMD: "" }) });
+  assert.equal(dev.status, 0, dev.stderr || dev.stdout);
+  assert.equal(JSON.parse(dev.stdout).steps.find((step) => step.step === "backup").skipped, true);
+
+  const prod = run(["deploy", "--adapter", "command", "--env", "prod", "--yes", "--skip-backup"], { cwd: dir, env: baseEnv() });
+  assert.equal(prod.status, 3, prod.stderr || prod.stdout);
+  assert.match(JSON.parse(prod.stdout).steps.find((step) => step.step === "backup-policy").error, /required/);
+});

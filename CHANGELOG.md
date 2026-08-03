@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.4.2 - 2026-08-03
+
+### Added
+
+- Interactive project-scoped deployment UI with immutable Git previews,
+  digest-bound confirmation, target locking, backup/apply/refresh/verify
+  progress, and authoritative receipts.
+- Environment-aware optional/required backup policy and command-provider
+  diagnostics without persisting command bodies or credentials.
+- Deployment request storage, stale-plan revalidation, tenant identity checks,
+  and shared UI/REST apply locking.
+
 ## 0.4.1 - 2026-08-03
 
 ### Fixed

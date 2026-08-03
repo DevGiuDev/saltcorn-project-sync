@@ -116,24 +116,40 @@ parallel if store review is external.
 
 ### Phase 4 — UI-first environment configuration and transport
 
-- Add a project setup wizard in the Saltcorn UI so a normal environment can be
+- [x] Add a project setup wizard in the Saltcorn UI so a normal environment can be
   prepared without hand-editing synchronization files.
-- Configure project root/repository, environment, adapter, base URL,
+- [x] Configure project root/repository, environment, adapter, base URL,
   branch/tenant mapping, transport, and backup/restore hooks from project
   settings.
-- Add connection, repository, permission, and backup health checks with a
+- [x] Add connection, repository, permission, and backup health checks with a
   clear ready/not-ready result.
-- Define and display precedence between project UI configuration,
+- [x] Define and display precedence between project UI configuration,
   `environments/<env>.json`, and process environment variables.
-- Extend environment profiles with non-secret adapter/base URL/transport
+- [x] Extend environment profiles with non-secret adapter/base URL/transport
   settings.
-- Keep secrets out of project JSON. Use masked/encrypted storage or references
+- [x] Keep secrets out of project JSON. Use masked/encrypted storage or references
   to environment variables/secret managers, depending on runtime support.
-- Support token generation, one-time display, rotation, and revocation without
+- [x] Support token generation, one-time display, rotation, and revocation without
   writing tokens to logs or deployment history.
-- Support direct HTTPS and an optional managed SSH tunnel transport so users do
+- [x] Support direct HTTPS and an optional managed SSH tunnel transport so users do
   not manually open tunnels.
-- Document CI usage and token rotation.
+- [x] Document CI usage and token rotation.
+
+### Phase 4.5 — Interactive deployment from the UI
+
+See [`ui-deployment-workflow-plan.md`](ui-deployment-workflow-plan.md).
+
+- [ ] Extract a shared deployment orchestrator used end-to-end by UI, CLI and CI. UI uses it now; CLI/CI share policy and lock but retain their wrapper.
+- [x] Resolve UI deployments to an immutable Git commit in an isolated checkout.
+- [x] Add short-lived preview requests bound to desired/actual/plan digests.
+- [x] Add a project-scoped review and confirmation UI.
+- [x] Revalidate target state and source commit after confirmation.
+- [x] Prevent concurrent UI/CLI/CI applies with a target deployment lock.
+- [x] Execute backup/apply/refresh/verify and stream/poll step status.
+- [x] Keep backup optional for local/dev and required for test/prod.
+- [x] Replace ambiguous backup scripts with diagnosed command/none provider contracts and
+  operator recipes.
+- [x] Preserve the Bearer-only generic REST apply endpoint for CLI/CI.
 
 ### Phase 5 — Backup diagnostics and integration coverage
 
@@ -162,7 +178,8 @@ parallel if store review is external.
 - A routine safe deployment requires one command and at most one confirmation.
 - No custom Node snippets are required.
 - A successful command prints a short receipt, not the full project state.
-- Every target mutation has a verifiable backup receipt.
+- Every required/requested backup has a verifiable receipt; an optional backup
+  skipped in local/dev is recorded explicitly in the deployment receipt.
 - Every successful or failed deployment attempt is visible in the target
   Deployments panel.
 - Repeating a request ID cannot duplicate mutations or history records.

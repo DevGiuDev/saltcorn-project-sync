@@ -9,6 +9,7 @@ const {
 } = require("../lib/plugin/renderers/projects");
 const { renderGitPage } = require("../lib/plugin/renderers/git");
 const { renderPlanPreview } = require("../lib/plugin/renderers/live-diff");
+const { renderDeployPage } = require("../lib/plugin/renderers/deploy");
 
 test("settings renderer is project-scoped and includes health", () => {
   const html = renderSettingsPage({
@@ -27,7 +28,11 @@ test("settings renderer is project-scoped and includes health", () => {
   assert.match(html, /id="project-setting-root-path"/);
   assert.match(html, /id="btn-save-project-settings"/);
   assert.match(html, /Health/);
+  assert.match(html, /Precedence/);
+  assert.match(html, /Managed SSH tunnel/);
+  assert.match(html, /Generate token/);
   assert.match(html, /window\.SCPS_SETTINGS_PROJECT_ID = 7/);
+  assert.match(html, /id="project-setting-backup-policy"/);
   assert.match(html, /alert-danger/);
 });
 
@@ -145,4 +150,15 @@ test("git renderer preserves project navigation and JS hooks", () => {
   assert.match(gitHtml, /window\.SCPS_GIT_PROJECT_ID = 7/);
   assert.match(gitHtml, /<code>\/srv\/project<\/code>/);
   assert.match(gitHtml, /scps-col-filter/);
+});
+
+test("deploy renderer exposes immutable preview and confirmation workflow", () => {
+  const html = renderDeployPage({ project: { id: 7, name: "CRM" }, environment: "dev", defaultRef: "develop", backupPolicy: "optional" });
+  assert.match(html, /data-rail="source">Source/);
+  assert.match(html, /data-rail="preflight">Preflight/);
+  assert.match(html, /data-rail="receipt">Receipt/);
+  assert.match(html, /id="btn-deploy-preview"/);
+  assert.match(html, /id="btn-deploy-confirm"/);
+  assert.match(html, /id="btn-deploy-environment"/);
+  assert.match(html, /window\.SCPS_DEPLOY/);
 });

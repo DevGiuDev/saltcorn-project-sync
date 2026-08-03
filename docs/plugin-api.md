@@ -16,6 +16,15 @@ Endpoints:
 - `GET /project-sync/api/deployments`
 - `GET /project-sync/api/deployments/:deploymentId`
 - `POST /project-sync/api/deployments`
+- `GET|POST /project-sync/api/projects/:id/environment`
+- `GET /project-sync/api/projects/:id/setup-health`
+- `GET|POST /project-sync/api/tokens`
+- `POST /project-sync/api/tokens/:id/revoke`
+- `GET /project-sync/api/projects/:id/deploy/context`
+- `POST /project-sync/api/projects/:id/deploy/preview`
+- `POST /project-sync/api/deployment-requests/:requestId/confirm`
+- `POST /project-sync/api/deployment-requests/:requestId/cancel`
+- `GET /project-sync/api/deployment-requests/:requestId`
 
 Legacy GET aliases also exist:
 
@@ -27,13 +36,13 @@ POST endpoints intentionally use `/project-sync/api/*` because Saltcorn core mou
 API requests require one of:
 
 - a same-origin Saltcorn admin session (plugin UI), or
-- a configured matching Bearer token (CLI/CI).
+- a matching hashed token generated in the setup UI, or the legacy process-configured Bearer token (CLI/CI).
 
 ```text
 Authorization: Bearer <token>
 ```
 
-Anonymous API access is denied even when `SALTCORN_PROJECT_SYNC_API_TOKEN` is not configured. Session-authenticated browser writes are accepted only when their `Origin`/`Referer` host matches the request host. Apply, backup, restore, and state refresh are Bearer-only operations.
+Anonymous API access is denied even when `SALTCORN_PROJECT_SYNC_API_TOKEN` is not configured. Session-authenticated browser writes are accepted only when their `Origin`/`Referer` host matches the request host. Apply, backup, restore, and state refresh are Bearer-only operations. Interactive deployment request endpoints are stricter in the opposite direction: they require a same-origin Saltcorn administrator session and reject Bearer-only clients.
 
 ## UI pages
 
@@ -45,7 +54,8 @@ The plugin exposes a project-first UI:
 - `/project-sync/live-diff?project_id=:id`: project-scoped diff between files and live tenant.
 - `/project-sync/plan-preview?project_id=:id`: project-scoped plan preview.
 - `/project-sync/approvals?project_id=:id`: project-scoped approval matrix.
-- `/project-sync/settings?project_id=:id`: project-scoped settings and health checks.
+- `/project-sync/settings?project_id=:id`: setup wizard, effective configuration precedence, health checks, and token lifecycle.
+- `/project-sync/projects/:id/deploy?environment=dev`: immutable Git preview, exact-plan confirmation, execution progress, and receipt.
 - `/project-sync/deployments`: authoritative deployment history from the target-side ledger, with an explicit local-cache fallback when the ledger is unavailable.
 
 `/project-sync`, `/project-sync/status`, and `/project-sync/health` redirect to `Projects` for backward compatibility. Project-scoped views use the selected project's `root_path`; a server-level `SALTCORN_PROJECT_SYNC_PROJECT_ROOT` is only a fallback.
@@ -54,16 +64,33 @@ The plugin exposes a project-first UI:
 
 `POST /project-sync/api/apply` is guarded:
 
-- requires `SALTCORN_PROJECT_SYNC_API_TOKEN` to be configured in the Saltcorn process
+- requires a valid generated token or `SALTCORN_PROJECT_SYNC_API_TOKEN`
 - requires matching `Authorization: Bearer <token>`
 - allows `env=local`, `env=dev`, `env=test`, and `env=prod`
 - expects a CLI-generated payload containing `desired`, `plan`, `state`, and `env`
+- accepts `request_id` and `project_slug` to identify the attempt and acquire a target lock
 - rejects blocked plans
 - rejects destructive operations unless `allow_destructive=true`
 - requires `backup=true` plus verifiable `backup_metadata` for `test` and `prod`
 - reports the apply as failed when the native adapter skips any planned operation
+- rejects a concurrent apply for the same project/environment with HTTP 409
 
 The plugin endpoints use the conservative native adapter internally and are best-effort until validated against the target Saltcorn version.
+
+## Interactive deployment requests
+
+The preview endpoint resolves a Git branch, tag, or SHA to an exact commit in
+an isolated checkout, exports the active tenant, and stores a short-lived
+request bound to desired-state, actual-state, and plan SHA-256 digests.
+Confirmation submits only the request ID, plan digest, and—when destructive—a
+typed environment. Source and tenant state are recalculated before apply;
+mismatches become `stale` and are never applied.
+
+The request endpoint is polled for `backup`, `applying`, `refreshing`,
+`verifying`, and a terminal `applied`, `drifted`, `*_failed`, `stale`,
+`expired`, or `cancelled` state. Permanent receipts are written separately to
+the target deployment ledger; request rows contain sanitized summaries rather
+than complete project or tenant state.
 
 ## Deployment ledger
 

@@ -1,6 +1,31 @@
 const { pluginConfigFields, routes } = require("./lib/plugin");
 const projectSyncConsole = require("./viewtemplates/project-sync-console");
 
+async function onLoad() {
+  // Operational configuration and token hashes are plugin-owned state and are
+  // deliberately separate from the project export/scope tables.
+  const projectSetup = require("./lib/project-setup");
+  await projectSetup.ensureTables();
+  const operational = require("./lib/plugin/operational-config");
+  await operational.ensureOperationalConfigTable();
+  await require("./lib/plugin/token-store").loadTokenCache();
+  await require("./lib/plugin/deployment-requests").ensureDeploymentRequestTables();
+  const configuredRoot = require("./lib/plugin/config").configuredProjectRoot();
+  if (configuredRoot) {
+    const project = (await projectSetup.listProjects()).find((entry) => entry.root_path === configuredRoot);
+    if (project) {
+      const environment = process.env.SALTCORN_PROJECT_SYNC_ENV || process.env.SALTCORN_PROJECT_SYNC_ENVIRONMENT || "dev";
+      try {
+        await operational.activateOperationalConfig(project.id, environment);
+      } catch (err) {
+        // Keep the setup page reachable so an administrator can repair an
+        // invalid profile or reference. Messages contain validation only.
+        console.warn(`[scps-setup] Operational configuration is not active: ${err.message}`);
+      }
+    }
+  }
+}
+
 /**
  * Inject a global branch/tenant mismatch banner on ALL Saltcorn pages.
  * Uses the `headers` plugin hook to inject a scriptBody that checks
@@ -75,4 +100,5 @@ module.exports = {
   viewtemplates: () => [projectSyncConsole],
   routes: () => routes,
   headers: () => branchTenantHeaders(),
+  onLoad,
 };

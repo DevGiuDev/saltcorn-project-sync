@@ -87,7 +87,7 @@ Full command reference: [CLI docs](docs/cli.md).
 
 ## Authentication for remote deployments
 
-The REST adapter authenticates via a shared Bearer token. Set `SALTCORN_PROJECT_SYNC_API_TOKEN` on both the Saltcorn server and the runner. HTTPS required in production.
+The REST adapter authenticates via a Bearer token. Generate a hashed, revocable token from the project setup page or set the legacy `SALTCORN_PROJECT_SYNC_API_TOKEN` on both the Saltcorn server and runner. HTTPS is required in production.
 
 See [REST adapter](docs/rest-adapter.md) and [Plugin REST API](docs/plugin-api.md).
 
@@ -143,6 +143,8 @@ The `examples/` directory contains a self-contained project (tables, roles, sett
 - [Dangerous changes](docs/dangerous-changes.md)
 - [Safety model](docs/safety-model.md)
 - [CLI](docs/cli.md)
+- [Environment setup and precedence](docs/environment-configuration.md)
+- [Interactive UI deployment and implementation plan](docs/ui-deployment-workflow-plan.md)
 - [Native adapter](docs/native-adapter.md)
 - [REST adapter](docs/rest-adapter.md)
 - [Plugin REST API](docs/plugin-api.md)

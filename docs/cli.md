@@ -15,6 +15,7 @@ saltcorn-project-sync plan-live --adapter rest --env dev --backup
 saltcorn-project-sync apply --adapter rest --env dev --allow-destructive
 saltcorn-project-sync verify-live --adapter rest
 saltcorn-project-sync deploy --adapter rest --env test --yes
+saltcorn-project-sync deploy --adapter rest --env dev --skip-backup
 saltcorn-project-sync backup --env prod
 saltcorn-project-sync record-deployment --env prod --status success
 saltcorn-project-sync doctor
@@ -40,6 +41,8 @@ The `command` adapter is configured via environment variables:
 - `SALTCORN_PROJECT_SYNC_SEQUENCE_CHECK_CMD`: optional `doctor-live` command for Postgres sequence health. It should print JSON; `{ "ok": false }` marks the check failed.
 
 `doctor-live` runs live reachability, adapter capability, Saltcorn version, plugin lock, token/auth, live export, and optional sequence-health checks.
+
+Live commands load `environments/<env>.json` before constructing the adapter. `--env` identifies the final target environment; it does not describe the laptop/runner where the command executes. Non-secret adapter, base URL, transport, branch/tenant, and runtime secret/hook references are supported. Process environment variables override the profile. See [Environment setup and precedence](environment-configuration.md).
 
 `plan-live` exports live state through the selected adapter and computes a plan
 directly, without a manually generated `--tenant-export` file. It applies the
@@ -69,6 +72,12 @@ records a local deployment, and — when the adapter supports it (currently
 `rest`) — persists an authoritative record on the target's deployment ledger.
 It prints one JSON receipt with a `steps` array documenting exactly what ran
 and exits non-zero if any step, including post-apply convergence, failed.
+
+`--skip-backup` is accepted only when the effective policy is optional
+(normally `local`/`dev`). `test` and `prod`, or an environment configured with
+`backup_policy: required`, reject it before apply. REST apply requests include
+a project/environment request ID and use the same target lock as the visual
+deployment flow, preventing overlapping mutations.
 
 Pass `--request-id ID` to make a `deploy` invocation genuinely idempotent:
 the same ID reused after a retry (e.g. a CI job re-run after a network
