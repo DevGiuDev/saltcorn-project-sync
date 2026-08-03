@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.4.1 - 2026-08-03
+
+### Fixed
+
+- `verify-live` and the `deploy` convergence check now use the plugin's
+  `/api/live-diff` as the source of truth (via a new `restAdapter.liveDiff`), so
+  they apply the project scope and agree with `plan` and `check-convergence`.
+  They previously recomputed without scope and reported false drift on real
+  projects that carry tenant-only objects.
+- `deploy` now records a unique target-side `deployment_id`
+  (`deploy-NNNNNN-<UTCstamp>`) when no `--request-id` is given, so a fresh
+  checkout no longer collides (`409`) with backfilled or prior ledger rows.
+
 ## 0.4.0 - 2026-08-02
 
 ### Added

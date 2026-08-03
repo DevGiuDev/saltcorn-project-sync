@@ -9,7 +9,7 @@ Supported Saltcorn versions: **1.6.0 and newer**.
 Install the companion CLI from npm:
 
 ```bash
-npm install --global saltcorn-project-sync@0.4.0
+npm install --global saltcorn-project-sync@0.4.1
 saltcorn-project-sync --help
 ```
 
