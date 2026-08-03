@@ -1,16 +1,13 @@
 name: CI
 
+# Fast pre-merge / pre-push feedback (lint + unit tests). The comprehensive
+# release gate — including the packed-artifact Saltcorn smoke — lives in
+# .github/workflows/publish.yml and runs on version tags.
+
 on:
   push:
     branches: [main]
   pull_request:
-  workflow_dispatch:
-    inputs:
-      docker_integration:
-        description: Run the disposable Saltcorn/Postgres integration stack
-        required: false
-        default: false
-        type: boolean
 
 permissions:
   contents: read
@@ -22,47 +19,13 @@ concurrency:
 jobs:
   test:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        node-version: [18.x, 20.x, 22.x]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: 22.x
           cache: npm
       - run: npm ci --ignore-scripts
-      - run: npm test
       - run: npm run lint
+      - run: npm test
       - run: npm audit --omit=dev
-
-  live-integration:
-    if: ${{ vars.SALTCORN_PROJECT_SYNC_BASE_URL != '' }}
-    needs: test
-    runs-on: ubuntu-latest
-    env:
-      SALTCORN_PROJECT_SYNC_BASE_URL: ${{ vars.SALTCORN_PROJECT_SYNC_BASE_URL }}
-      SALTCORN_PROJECT_SYNC_API_TOKEN: ${{ secrets.SALTCORN_PROJECT_SYNC_API_TOKEN }}
-      SALTCORN_PROJECT_SYNC_ADAPTER: rest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20.x
-          cache: npm
-      - run: npm ci --ignore-scripts
-      - run: npm run test:integration
-
-  docker-integration:
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.docker_integration }}
-    needs: test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20.x
-          cache: npm
-      - run: npm ci --ignore-scripts
-      - run: npm run test:integration:docker
