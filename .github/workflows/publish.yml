@@ -93,6 +93,12 @@ jobs:
               ;;
           esac
 
+      # NOTE: provenance (`--provenance`) is intentionally disabled. With the
+      # current npm/sigstore stack it fails with TLOG_CREATE_ENTRY_ERROR (409
+      # "an equivalent entry already exists") on deterministic, reproducible
+      # builds, blocking the upload. Trusted publishing (OIDC auth) still works
+      # without it; revisit provenance once that sigstore/rekor collision is
+      # resolved upstream.
       - name: Publish to npm (trusted publishing via OIDC, with provenance)
         if: ${{ github.event_name != 'workflow_dispatch' || !inputs.dry_run }}
         # Force the trusted-publishing (OIDC) path: npm must NOT find a token,
@@ -100,7 +106,7 @@ jobs:
         # short-lived credentials minted from this workflow's OIDC token.
         env:
           NODE_AUTH_TOKEN: ""
-        run: npm publish --provenance --access public
+        run: npm publish --access public
 
       - name: Publish dry-run (pack only, no upload)
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
