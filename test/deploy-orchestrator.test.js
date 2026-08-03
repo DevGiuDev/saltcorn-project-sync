@@ -6,7 +6,7 @@ const path = require("node:path");
 const { execFileSync } = require("node:child_process");
 
 const { prepareDeployment, executeDeployment, backupPolicy, digest } = require("../lib/deploy-orchestrator");
-const { validateGitRef, resolveGitCommit, withGitCommitCheckout } = require("../lib/git-source");
+const { validateGitRef, scopedSafeGitArgs, resolveGitCommit, withGitCommitCheckout } = require("../lib/git-source");
 const { assertTargetTenant } = require("../lib/plugin/deploy-service");
 
 function projectFixture() {
@@ -98,4 +98,16 @@ test("Git source resolves an exact commit in an isolated checkout", async () => 
     assert.notEqual(checkout, dir);
   });
   assert.throws(() => validateGitRef("--upload-pack=evil"), /invalid/);
+});
+
+test("Git source scopes safe.directory to the configured repository", () => {
+  const dir = projectFixture();
+  fs.mkdirSync(path.join(dir, ".git"));
+  const args = scopedSafeGitArgs(dir, ["status", "--short"]);
+  const root = fs.realpathSync(dir);
+  assert.deepEqual(args.slice(0, 4), [
+    "-c", `safe.directory=${root}`,
+    "-c", `safe.directory=${path.join(root, ".git")}`,
+  ]);
+  assert.deepEqual(args.slice(4), ["status", "--short"]);
 });

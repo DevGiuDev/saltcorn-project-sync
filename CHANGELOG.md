@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.4.3 - 2026-08-03
+
+### Fixed
+
+- Allow the UI deployment checkout to read a configured repository owned by a
+  different VPS user by scoping Git `safe.directory` to that repository and
+  its Git directory for each command, without changing global Git config.
+
 ## 0.4.2 - 2026-08-03
 
 ### Added
