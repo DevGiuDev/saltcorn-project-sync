@@ -57,12 +57,11 @@ const unexpected = files.filter((file) => forbidden.some((pattern) => pattern.te
 const errors = [];
 if (missing.length) errors.push(`Missing required package files: ${missing.join(", ")}`);
 if (unexpected.length) errors.push(`Forbidden package files: ${unexpected.join(", ")}`);
-// Phase 4/4.5 add setup, token/health/transport support and the interactive
-// deployment service, UI, request store, tests excluded from npm, and operator
-// documentation. The 0.5 client-style Git workspace and role-aware deployment
-// navigation add a small amount of runtime markup; keep a tight budget around
-// those additions rather than allowing unbounded package growth.
-if (metadata.unpackedSize > 935_000) errors.push(`Unpacked package is too large: ${metadata.unpackedSize} bytes`);
+// Phase 4/4.5 adds setup, token/health/transport support and the interactive
+// deployment service. The Git workspace now also contains portable-scope
+// recording and legacy-scope migration safeguards. Keep a tight budget around
+// those runtime additions rather than allowing unbounded package growth.
+if (metadata.unpackedSize > 950_000) errors.push(`Unpacked package is too large: ${metadata.unpackedSize} bytes`);
 if (errors.length) throw new Error(errors.join("\n"));
 
 console.log(`Package check passed: ${files.length} files, ${metadata.unpackedSize} unpacked bytes.`);

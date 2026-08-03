@@ -6,7 +6,7 @@ const path = require("node:path");
 const { execFileSync } = require("node:child_process");
 
 const { prepareDeployment, executeDeployment, backupPolicy, digest } = require("../lib/deploy-orchestrator");
-const { validateGitRef, scopedSafeGitArgs, fetchRemote, resolveGitCommit, withGitCommitCheckout, fastForwardWorkingBranch, listDeploymentRefs } = require("../lib/git-source");
+const { validateGitRef, scopedSafeGitArgs, fetchRemote, resolveGitCommit, withGitCommitCheckout, fastForwardWorkingBranch, listDeploymentRefs, listCommitScopeEntries } = require("../lib/git-source");
 const { assertTargetTenant, persistScopeAdditions } = require("../lib/plugin/deploy-service");
 
 function projectFixture() {
@@ -107,6 +107,25 @@ test("legacy target scope also preserves exclusions for objects missing live", a
   ]);
 });
 
+test("legacy deployment recognizes an object file added by the selected commit", async () => {
+  const dir = projectFixture();
+  const viewsDir = path.join(dir, "objects", "views");
+  fs.mkdirSync(viewsDir, { recursive: true });
+  fs.writeFileSync(path.join(viewsDir, "new_view.json"), JSON.stringify({ name: "new_view", viewtemplate: "List", table_name: "customers" }));
+  const adapter = mutableAdapter();
+  const prepared = await prepareDeployment({
+    sourceDir: dir,
+    adapter,
+    env: "dev",
+    scopeSet: new Set(),
+    commitEntries: [{ object_type: "views", object_name: "new_view" }],
+  });
+  assert(prepared.plan.operations.some((operation) => operation.action === "create_view" && operation.view === "new_view"));
+  assert.equal(prepared.plan.scope_source, "legacy_commit");
+  assert.deepEqual(prepared.plan.scope_additions, [{ object_type: "views", object_name: "new_view" }]);
+  assert.deepEqual(prepared.plan.scope_ignored, [{ object_type: "tables", object_name: "customers" }]);
+});
+
 test("versioned manifest scope overrides a target-local exclusion", async () => {
   const dir = projectFixture();
   const manifestPath = path.join(dir, "saltcorn.project.json");
@@ -185,6 +204,19 @@ test("Git source resolves an exact commit in an isolated checkout", async () => 
     assert.equal(fs.existsSync(path.join(checkout, ".git")), false);
   });
   assert.throws(() => validateGitRef("--upload-pack=evil"), /invalid/);
+});
+
+test("Git source identifies object files added by a commit", () => {
+  const dir = projectFixture();
+  fs.mkdirSync(path.join(dir, "objects", "views"), { recursive: true });
+  fs.writeFileSync(path.join(dir, "objects", "views", "new_view.json"), JSON.stringify({ name: "new_view", viewtemplate: "List" }));
+  execFileSync("git", ["init", "-b", "main"], { cwd: dir, stdio: "ignore" });
+  execFileSync("git", ["config", "user.email", "test@example.com"], { cwd: dir });
+  execFileSync("git", ["config", "user.name", "Test"], { cwd: dir });
+  execFileSync("git", ["add", "."], { cwd: dir });
+  execFileSync("git", ["commit", "-m", "add view"], { cwd: dir, stdio: "ignore" });
+  const commit = resolveGitCommit(dir, "main", { preferRemote: false }).commit;
+  assert.deepEqual(listCommitScopeEntries(dir, commit), [{ object_type: "tables", object_name: "customers" }, { object_type: "views", object_name: "new_view" }]);
 });
 
 test("Git source scopes safe.directory to the configured repository", () => {

@@ -351,6 +351,19 @@ confirmaciones, políticas de backup ni controles destructivos.
 La pantalla Git usa un flujo de cliente convencional: ramas, working tree con
 stage/unstage individual o por grupo, editor de commit, sincronización remota e
 historial. `Pull` también exige fast-forward para evitar merges accidentales.
+Si la rama tiene commits sin enviar, **Push _N_** se resalta en ámbar. Al crear
+un commit se puede marcar **Push after commit** para enviarlo a `origin` como
+parte de la misma acción. Cuando se han staged archivos de `objects/` o
+`plugins.lock.json`, **Record object scope** queda marcado por defecto: genera
+el bloque portable `scope` a partir del índice que se va a confirmar y añade el
+manifest al commit. No lee objetos sin stage, de modo que el manifest nunca
+referencia por accidente un fichero que no viaje en ese commit.
+
+Como transición para proyectos con commits antiguos sin `scope`, Deploy acepta
+el objeto JSON que haya sido **añadido por el commit seleccionado** como una
+inclusión explícita y lo muestra como `track_scope`. Los demás objetos legacy
+continúan sin gestionar; no se adoptan por estar presentes en Git. El siguiente
+commit con **Record object scope** migra el proyecto por completo.
 
 El proceso equivalente por CLI sigue disponible. En desarrollo puede omitirse
 el backup de forma explícita:

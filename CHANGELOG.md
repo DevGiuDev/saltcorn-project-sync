@@ -12,6 +12,10 @@ All notable changes to this project will be documented in this file.
   count for newly detected objects.
 - Share the dark ink/cyan panel-header palette across project pages, including
   Git, Deploy, Live Diff, Settings and nested diff panels.
+- Highlight pending pushes, optionally push immediately after a UI commit, and
+  record portable deployment scope from staged project objects.
+- Recognize an object file introduced by the selected legacy commit as an
+  explicit scope addition while keeping earlier unmanaged Git objects excluded.
 
 ## 0.5.0 - 2026-08-03
 

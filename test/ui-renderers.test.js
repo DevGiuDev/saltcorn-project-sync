@@ -135,7 +135,7 @@ test("git renderer exposes a client-style workspace and action hooks", () => {
       clean: false,
       ahead: 1,
       behind: 2,
-      staged: [{ status: "M", path: "project.json" }],
+      staged: [{ status: "A", path: "objects/views/dashboard.json" }],
       unstaged: [{ status: "M", path: "tables/customers.json" }],
       untracked: ["views/by_customer.json"],
       conflicted: [],
@@ -151,6 +151,9 @@ test("git renderer exposes a client-style workspace and action hooks", () => {
   assert.match(gitHtml, /project-sync\/approvals\?project_id=7/);
   assert.match(gitHtml, /project-sync\/settings\?project_id=7/);
   assert.match(gitHtml, /id="btn-git-commit"/);
+  assert.match(gitHtml, /id="git-commit-push"/);
+  assert.match(gitHtml, /id="git-commit-sync-scope"[^>]*checked/);
+  assert.match(gitHtml, /btn-git-push[^>]*btn-warning/);
   assert.match(gitHtml, /id="btn-git-pull"/);
   assert.match(gitHtml, /id="btn-create-branch"/);
   assert.match(gitHtml, /class="scps-git-layout"/);
