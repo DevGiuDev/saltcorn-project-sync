@@ -61,13 +61,20 @@ jobs:
 
       - name: Verify tag matches package version
         run: |
-          tag="${GITHUB_REF#refs/tags/}"
           version="$(node -p "require('./package.json').version")"
-          if [ -n "$tag" ] && [ "v$version" != "$tag" ]; then
-            echo "::error::Git tag '$tag' does not match package.json version 'v$version'" >&2
-            exit 1
-          fi
-          echo "Releasing version $version (tag: ${tag:-none, workflow_dispatch})"
+          case "$GITHUB_REF" in
+            refs/tags/*)
+              tag="${GITHUB_REF#refs/tags/}"
+              if [ "v$version" != "$tag" ]; then
+                echo "::error::Git tag '$tag' does not match package.json version 'v$version'" >&2
+                exit 1
+              fi
+              echo "Releasing version $version (tag: $tag)"
+              ;;
+            *)
+              echo "No tag ref (workflow_dispatch on $GITHUB_REF); skipping strict tag/version match. Package version: $version"
+              ;;
+          esac
 
       - name: Publish to npm (trusted publishing via OIDC, with provenance)
         if: ${{ github.event_name != 'workflow_dispatch' || !inputs.dry_run }}
