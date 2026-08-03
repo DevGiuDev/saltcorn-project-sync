@@ -62,8 +62,19 @@ console.log(`Packed plugin Saltcorn smoke passed: ${result.saltcorn_version || "
 token="${SALTCORN_PROJECT_SYNC_API_TOKEN:-scps-docker-token}"
 package_version="$(node -p "require('$artifact_dir/unpacked/package/package.json').version")"
 ledger_payload="$(printf '{\"request_id\":\"package-smoke-001\",\"deployment_id\":\"deploy-package-smoke\",\"project\":\"package-smoke\",\"version\":\"%s\",\"environment\":\"test\",\"status\":\"verified\",\"operations\":{\"count\":0},\"warnings\":{\"count\":0},\"convergence\":{\"ok\":true,\"operations\":0}}' "$package_version")"
-created="$(curl -fsS -H "Authorization: Bearer $token" -H 'Content-Type: application/json' -d "$ledger_payload" "http://127.0.0.1:$port/project-sync/api/deployments")"
-replayed="$(curl -fsS -H "Authorization: Bearer $token" -H 'Content-Type: application/json' -d "$ledger_payload" "http://127.0.0.1:$port/project-sync/api/deployments")"
+ledger_post() {
+  local out code
+  out="$(curl -sS -H "Authorization: Bearer $token" -H 'Content-Type: application/json' -d "$ledger_payload" "http://127.0.0.1:$port/project-sync/api/deployments" 2>/dev/null)"
+  code="$(node -e 'try{const b=JSON.parse(process.argv[1]);console.log(b&&b.ok===true?"200":"500")}catch(e){console.log("500")}' "$out")"
+  if [ "$code" != "200" ]; then
+    echo "Ledger POST failed. Response body:" >&2
+    printf '%s\n' "$out" >&2
+    return 1
+  fi
+  printf '%s' "$out"
+}
+created="$(ledger_post)" || exit 1
+replayed="$(ledger_post)" || exit 1
 listed="$(curl -fsS -H "Authorization: Bearer $token" "http://127.0.0.1:$port/project-sync/api/deployments")"
 node -e '
 const created = JSON.parse(process.argv[1]);
