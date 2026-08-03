@@ -59,6 +59,22 @@ jobs:
       - name: Release gate (lint, unit tests, package checks, Saltcorn smoke)
         run: npm run release:check:full
 
+      # actions/setup-node writes a `//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}`
+      # line into .npmrc. For npm trusted publishing (OIDC) that line must be
+      # absent: with it present, npm CLI attempts classic auth with an empty
+      # token and fails with ENEEDAUTH instead of doing the OIDC exchange.
+      # See npm/documentation#1960 and actions/setup-node#1551.
+      - name: Strip npm auth-token line for trusted publishing (OIDC)
+        run: |
+          npmrc="${NPM_CONFIG_USERCONFIG:-$HOME/.npmrc}"
+          if [ -f "$npmrc" ]; then
+            sed -i '/_authToken/d' "$npmrc"
+            echo "--- .npmrc after strip ---"
+            cat "$npmrc"
+          fi
+          test -n "$ACTIONS_ID_TOKEN_REQUEST_URL"
+          echo "OIDC token endpoint present: $ACTIONS_ID_TOKEN_REQUEST_URL"
+
       - name: Verify tag matches package version
         run: |
           version="$(node -p "require('./package.json').version")"
