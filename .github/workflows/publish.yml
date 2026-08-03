@@ -100,11 +100,14 @@ jobs:
       # builds, blocking the upload. Trusted publishing (OIDC auth) still works
       # without it; revisit provenance once that sigstore/rekor collision is
       # resolved upstream.
-      - name: Publish to npm (trusted publishing via OIDC, with provenance)
+      - name: Publish to npm (trusted publishing via OIDC)
         if: ${{ github.event_name != 'workflow_dispatch' || !inputs.dry_run }}
         # Force the trusted-publishing (OIDC) path: npm must NOT find a token,
         # otherwise it would publish with a long-lived token instead of the
         # short-lived credentials minted from this workflow's OIDC token.
+        # npm 11 signs and publishes a provenance statement automatically under
+        # trusted publishing (no --provenance flag needed; npm 12 currently has
+        # a sigstore transparency-log 409 regression).
         env:
           NODE_AUTH_TOKEN: ""
         run: npm publish --access public
