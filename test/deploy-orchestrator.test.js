@@ -96,6 +96,7 @@ test("Git source resolves an exact commit in an isolated checkout", async () => 
   await withGitCommitCheckout(dir, source.commit, async (checkout) => {
     assert.equal(fs.existsSync(path.join(checkout, "saltcorn.project.json")), true);
     assert.notEqual(checkout, dir);
+    assert.equal(fs.existsSync(path.join(checkout, ".git")), false);
   });
   assert.throws(() => validateGitRef("--upload-pack=evil"), /invalid/);
 });

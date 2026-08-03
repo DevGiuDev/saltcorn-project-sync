@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.4.4 - 2026-08-03
+
+### Fixed
+
+- Materialize immutable UI deployment sources with `git archive` instead of a
+  shared local clone. This avoids the child `upload-pack` ownership check that
+  still rejected Docker-mounted repositories after command-scoped
+  `safe.directory` configuration.
+
 ## 0.4.3 - 2026-08-03
 
 ### Fixed

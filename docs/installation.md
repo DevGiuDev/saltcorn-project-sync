@@ -32,7 +32,7 @@ The Git panel can also be opened from a specific project that already has `root_
 Install a pinned CLI version:
 
 ```bash
-npm install --global saltcorn-project-sync@0.4.3
+npm install --global saltcorn-project-sync@0.4.4
 saltcorn-project-sync --help
 ```
 
@@ -46,7 +46,7 @@ sc-project-sync
 Install the npm package as a Saltcorn plugin:
 
 ```bash
-expected=0.4.3
+expected=0.4.4
 test "$(npm view saltcorn-project-sync version)" = "$expected"
 saltcorn install-plugin --npm saltcorn-project-sync
 ```
