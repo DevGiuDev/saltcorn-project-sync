@@ -95,6 +95,13 @@ test("project renderers keep card links, forms, and scope action hooks", () => {
   assert.match(detailHtml, /class="badge bg-primary">crm<\/span>/);
   assert.match(detailHtml, /scope-toggle/);
   assert.match(detailHtml, /scps-col-filter/);
+
+  const pendingHtml = renderProjectDetail({ id: 8, name: "Pending", slug: "pending" }, {
+    tables: [{ name: "new_table", included: false, has_scope: false, scope_pending: true }],
+  });
+  assert.match(pendingHtml, /new · save/);
+  assert.match(pendingHtml, /Pending save/);
+  assert.match(pendingHtml, /new tenant object detected/);
 });
 
 test("plan renderer shows targets for settings and menu entries", () => {

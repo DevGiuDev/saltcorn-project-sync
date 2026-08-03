@@ -138,6 +138,14 @@ describe("project-setup auto-detect", () => {
     assert.equal(tenant.settings[0].auto_detected, "manual");
   });
 
+  it("keeps tenant objects without a scope row pending instead of including them", () => {
+    const tenant = tenantObjectsFromState({ tables: [{ name: "new_table", fields: [] }] });
+    applyScopeToTenantObjects(tenant, []);
+    assert.equal(tenant.tables[0].included, false);
+    assert.equal(tenant.tables[0].has_scope, false);
+    assert.equal(tenant.tables[0].scope_pending, true);
+  });
+
   it("deduplicates tenant objects and posted scope entries by type/name", () => {
     const tenant = tenantObjectsFromState({
       triggers: [

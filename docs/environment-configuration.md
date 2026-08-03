@@ -306,6 +306,16 @@ con una versión actual del plugin y confirma ese `scope` en Git para migrar el
 proyecto. A partir de ahí, la incorporación forma parte del digest y se guarda
 después de que APPLY y VERIFY converjan.
 
+En **Scope**, un objeto que existe en el tenant pero todavía no tiene una fila
+en el scope local aparece desmarcado con la etiqueta `new · save` y cuenta como
+`Pending save`. No se considera incluido por defecto. Selecciónalo (o usa
+`Toggle all`) y pulsa **Save scope** para persistir la decisión; el botón cambia
+a amarillo mientras hay cambios de scope sin guardar y el navegador avisa si se
+intenta abandonar la página. Si prefieres mantenerlo fuera del proyecto, guarda
+la casilla desmarcada: así queda registrada la exclusión y deja de aparecer como
+pendiente. **Re-detect** vuelve a calcular el conjunto automático y lo persiste
+de inmediato, por lo que debe usarse como una acción deliberada.
+
 ### 5. Confirmar y seguir el resultado
 
 Revisa el commit, las operaciones y la identidad del plan. Si existen cambios

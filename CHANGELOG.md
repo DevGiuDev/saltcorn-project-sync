@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+
+### Changed
+
+- Treat tenant objects without a persisted scope row as pending and unchecked;
+  the Scope view now explains and highlights the required save decision.
+- Warn before leaving Scope with unsaved checkbox changes and show a pending
+  count for newly detected objects.
+- Share the dark ink/cyan panel-header palette across project pages, including
+  Git, Deploy, Live Diff, Settings and nested diff panels.
+
 ## 0.5.0 - 2026-08-03
 
 ### Added
