@@ -290,8 +290,11 @@ El bloque `scope` de `saltcorn.project.json`, escrito por los exports completos,
 constituye el alcance deseado versionado. Si un objeto todavía no pertenece al
 scope local del tenant, Deploy lo muestra como `track_scope`; no hace falta
 salir a Live Diff ni a Scope. En commits antiguos sin ese bloque, sólo se
-infieren automáticamente objetos que aún no existen live. La incorporación
-forma parte del digest y se guarda después de que APPLY y VERIFY converjan.
+despliega el scope local ya configurado: la ausencia de un objeto en el tenant
+no basta para decidir que debe incorporarse. Haz una única exportación completa
+con una versión actual del plugin y confirma ese `scope` en Git para migrar el
+proyecto. A partir de ahí, la incorporación forma parte del digest y se guarda
+después de que APPLY y VERIFY converjan.
 
 ### 5. Confirmar y seguir el resultado
 

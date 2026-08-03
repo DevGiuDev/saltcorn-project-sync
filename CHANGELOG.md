@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.4.8 - 2026-08-03
+
+### Fixed
+
+- Keep the target allowlist fully authoritative for legacy manifests. Tenant
+  absence is not treated as proof that an excluded Git object is newly desired;
+  a full export writes the unambiguous portable scope used by future deploys.
+
+### Changed
+
+- Refresh `origin` automatically before every UI deployment preview; Generate
+  no longer depends on a manual pull of the VPS working tree.
+
 ## 0.4.7 - 2026-08-03
 
 ### Changed

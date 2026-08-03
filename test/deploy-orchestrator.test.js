@@ -62,6 +62,13 @@ test("shared orchestrator previews, applies, refreshes and verifies", async () =
 
 test("committed objects extend target scope and remain plan-bound", async () => {
   const dir = projectFixture();
+  const manifestPath = path.join(dir, "saltcorn.project.json");
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+  manifest.scope = {
+    version: 1,
+    objects: { tables: ["customers"], views: [], pages: [], triggers: [], roles: [], menu: [], settings: [], plugins: [] },
+  };
+  fs.writeFileSync(manifestPath, JSON.stringify(manifest));
   const adapter = mutableAdapter();
   const prepared = await prepareDeployment({ sourceDir: dir, adapter, env: "dev", scopeSet: new Set() });
   assert.deepEqual(prepared.plan.scope_additions, [
@@ -81,6 +88,17 @@ test("legacy target scope preserves exclusions for objects already live", async 
       views: [], pages: [], triggers: [], roles: [], menu: [], settings: [], plugins: [],
     },
   });
+  const prepared = await prepareDeployment({ sourceDir: dir, adapter, env: "dev", scopeSet: new Set() });
+  assert.equal(prepared.summary.count, 0);
+  assert.equal(prepared.summary.scope_additions, 0);
+  assert.deepEqual(prepared.plan.scope_ignored, [
+    { object_type: "tables", object_name: "customers" },
+  ]);
+});
+
+test("legacy target scope also preserves exclusions for objects missing live", async () => {
+  const dir = projectFixture();
+  const adapter = mutableAdapter();
   const prepared = await prepareDeployment({ sourceDir: dir, adapter, env: "dev", scopeSet: new Set() });
   assert.equal(prepared.summary.count, 0);
   assert.equal(prepared.summary.scope_additions, 0);

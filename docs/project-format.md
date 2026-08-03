@@ -29,10 +29,11 @@ object named by the committed manifest scope. Deploy previews list additions,
 bind them into the plan digest, and persist them after convergence.
 
 For legacy commits without `scope`, the target allowlist remains authoritative.
-The preview additionally infers Git objects that do not exist live, allowing a
-new table or view to be created without first visiting Scope. Existing live
-objects excluded by the target remain unmanaged and are reported as legacy
-scope exclusions.
+Objects outside it remain unmanaged and are reported as legacy scope
+exclusions, whether or not they already exist in the live tenant. Tenant
+absence alone cannot distinguish an intentionally new object from stale Git
+content. Perform one full export with a current plugin to write the portable
+scope; subsequent deployments then require no Scope or Live Diff round-trip.
 
 Absence from the commit remains non-destructive: tenant objects not represented
 in Git are preserved unless an explicit change intent authorizes an operation.
