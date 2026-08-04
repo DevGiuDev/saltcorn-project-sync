@@ -1,6 +1,9 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { transliterate, safeFileName, deduplicateSafeFileNames, stripObjectNoise } = require("../lib/project-io");
+const fs = require("node:fs");
+const os = require("node:os");
+const path = require("node:path");
+const { transliterate, safeFileName, deduplicateSafeFileNames, stripObjectNoise, pullObjectToDisk, deleteObjectFromDisk } = require("../lib/project-io");
 
 test("transliterate strips common diacritics", () => {
   assert.equal(transliterate("Métricas"), "Metricas");
@@ -87,4 +90,30 @@ test("deduplicateSafeFileNames handles mixed collision and unique", () => {
   assert.equal(result[2], "bar_2");
   assert.equal(result[1], "bar_1");
   assert.equal(result[3], "baz");
+});
+
+test("deleteObjectFromDisk removes the file written by pullObjectToDisk", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "scps-del-"));
+  try {
+    pullObjectToDisk(dir, "views", { name: "myview", template: "List" });
+    const expectedPath = path.join(dir, "objects", "views", "myview.json");
+    assert.ok(fs.existsSync(expectedPath), "file should exist after pull");
+
+    const res = deleteObjectFromDisk(dir, "views", "myview");
+    assert.equal(res.removed, true);
+    assert.ok(!fs.existsSync(expectedPath), "file should be gone after delete");
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("deleteObjectFromDisk is idempotent when the file is already gone", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "scps-del-"));
+  try {
+    const res = deleteObjectFromDisk(dir, "views", "ghost");
+    assert.equal(res.removed, false);
+    assert.ok(!fs.existsSync(res.file));
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });

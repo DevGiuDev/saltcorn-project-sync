@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+## 0.6.1 - 2026-08-04
+
+### Added
+
+- Delete objects from the repository directly in the Live-Diff panel. The
+  **Eliminar** button on `created` objects (in Git, missing live) removes the
+  JSON file, excludes the object from scope, and writes a versioned
+  `drop_<kind>` change intent so the deletion propagates to other environments
+  on the next deploy. The intent is stamped with the current manifest version
+  and retired automatically by the `sinceVersion` filter once a tenant reaches
+  that version, so it does not accumulate as noise.
+- `deleteObjectFromDisk` helper (`lib/project-io.js`) as the inverse of
+  `pullObjectToDisk`, idempotent when the file is already gone.
+- `writeDropIntent` helper (`lib/change-intents.js`) for generating valid,
+  versioned drop intents from the UI.
+
 ## 0.6.0 - 2026-08-04
 
 ### Added

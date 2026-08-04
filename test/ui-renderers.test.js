@@ -8,7 +8,7 @@ const {
   renderProjectDetail,
 } = require("../lib/plugin/renderers/projects");
 const { renderGitPage } = require("../lib/plugin/renderers/git");
-const { renderPlanPreview } = require("../lib/plugin/renderers/live-diff");
+const { renderPlanPreview, renderSyncButton } = require("../lib/plugin/renderers/live-diff");
 const { renderDeployPage } = require("../lib/plugin/renderers/deploy");
 const { renderMigrationsPage } = require("../lib/plugin/renderers/migrations");
 
@@ -301,4 +301,17 @@ test("splitByRun separates once and always items", () => {
   assert.equal(once.length, 2); // a + c (default once)
   assert.equal(always.length, 1); // b
   assert.equal(always[0].name, "b");
+});
+
+test("renderSyncButton shows a delete button for created objects", () => {
+  const html = renderSyncButton("views", "created", "myview", null, "push");
+  assert.match(html, /delete-btn/);
+  assert.match(html, /data-kind="views"/);
+  assert.match(html, /data-name="myview"/);
+  assert.match(html, /Eliminar/);
+});
+
+test("renderSyncButton does not show a delete button for orphaned objects", () => {
+  const html = renderSyncButton("views", "orphaned", "liveOnly", null, "pull");
+  assert.doesNotMatch(html, /delete-btn/);
 });
