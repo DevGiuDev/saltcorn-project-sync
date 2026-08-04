@@ -121,7 +121,7 @@ test("deleteObjectFromDisk is idempotent when the file is already gone", () => {
 test("pullPluginToLock writes plugins.lock.json and not objects/plugins/", () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "scps-plugin-"));
   try {
-    const res = pullPluginToLock(dir, { name: "saltcorn-project-sync", version: "0.6.1", source: "local" });
+    const res = pullPluginToLock(dir, { name: "saltcorn-project-sync", version: "0.6.1", source: "local", location: "saltcorn-project-sync" });
     assert.equal(res.mode, "full");
 
     const lockPath = path.join(dir, "plugins.lock.json");
@@ -132,7 +132,31 @@ test("pullPluginToLock writes plugins.lock.json and not objects/plugins/", () =>
     assert.ok(!fs.existsSync(stray), "should NOT write a stray objects/plugins/ file");
 
     const lock = JSON.parse(fs.readFileSync(lockPath, "utf8"));
-    assert.deepEqual(lock.plugins, [{ name: "saltcorn-project-sync", version: "0.6.1", source: "local" }]);
+    assert.deepEqual(lock.plugins, [{ name: "saltcorn-project-sync", version: "0.6.1", source: "local", location: "saltcorn-project-sync" }]);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("pullPluginToLock persists the npm package name as location when it differs from name", () => {
+  // The json plugin's local name is "json" but its npm package is "@saltcorn/json".
+  // loadAndSaveNewPlugin needs the npm package name to install on a remote tenant.
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "scps-plugin-"));
+  try {
+    pullPluginToLock(dir, { name: "json", version: "0.4.6", source: "npm", location: "@saltcorn/json" });
+    const lock = JSON.parse(fs.readFileSync(path.join(dir, "plugins.lock.json"), "utf8"));
+    assert.deepEqual(lock.plugins, [{ name: "json", version: "0.4.6", source: "npm", location: "@saltcorn/json" }]);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("pullPluginToLock defaults location to name when the live export omits it", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "scps-plugin-"));
+  try {
+    pullPluginToLock(dir, { name: "buyapp", version: "0.6.1", source: "npm" });
+    const lock = JSON.parse(fs.readFileSync(path.join(dir, "plugins.lock.json"), "utf8"));
+    assert.equal(lock.plugins[0].location, "buyapp");
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
@@ -141,11 +165,11 @@ test("pullPluginToLock writes plugins.lock.json and not objects/plugins/", () =>
 test("pullPluginToLock upserts an existing plugin instead of duplicating", () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "scps-plugin-"));
   try {
-    pullPluginToLock(dir, { name: "buyapp", version: "0.6.0", source: "npm" });
-    pullPluginToLock(dir, { name: "buyapp", version: "0.6.1", source: "npm" });
+    pullPluginToLock(dir, { name: "buyapp", version: "0.6.0", source: "npm", location: "@buyapp/integration" });
+    pullPluginToLock(dir, { name: "buyapp", version: "0.6.1", source: "npm", location: "@buyapp/integration" });
 
     const lock = JSON.parse(fs.readFileSync(path.join(dir, "plugins.lock.json"), "utf8"));
-    assert.deepEqual(lock.plugins, [{ name: "buyapp", version: "0.6.1", source: "npm" }]);
+    assert.deepEqual(lock.plugins, [{ name: "buyapp", version: "0.6.1", source: "npm", location: "@buyapp/integration" }]);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
@@ -160,8 +184,8 @@ test("pullPluginToLock selective mode merges only the requested property", () =>
     assert.deepEqual(res.adopted_keys, ["version"]);
 
     const lock = JSON.parse(fs.readFileSync(path.join(dir, "plugins.lock.json"), "utf8"));
-    // version updated to live value, source untouched
-    assert.deepEqual(lock.plugins, [{ name: "buyapp", version: "0.6.1", source: "npm" }]);
+    // version updated to live value, source/location untouched (defaulted from name on first pull)
+    assert.deepEqual(lock.plugins, [{ name: "buyapp", version: "0.6.1", source: "npm", location: "buyapp" }]);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
@@ -172,7 +196,7 @@ test("pullPluginToLock falls back to package_version when version is missing", (
   try {
     pullPluginToLock(dir, { name: "buyapp", package_version: "1.2.3" });
     const lock = JSON.parse(fs.readFileSync(path.join(dir, "plugins.lock.json"), "utf8"));
-    assert.deepEqual(lock.plugins, [{ name: "buyapp", version: "1.2.3", source: "unknown" }]);
+    assert.deepEqual(lock.plugins, [{ name: "buyapp", version: "1.2.3", source: "unknown", location: "buyapp" }]);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }

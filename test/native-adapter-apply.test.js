@@ -407,3 +407,36 @@ test("native adapter drops a plugin via instance.delete()", async () => {
   const gone = await models.Plugin.findOne({ name: "legacy" });
   assert.equal(gone, null);
 });
+
+test("native adapter passes the npm package location to loadAndSaveNewPlugin", async () => {
+  // The json plugin's name is "json" but its npm package is "@saltcorn/json".
+  // loadAndSaveNewPlugin needs the package name to npm-install on a remote tenant.
+  const models = fakeModels();
+  const adapter = nativeSaltcornAdapter(models);
+  await adapter.applyPlan({
+    desired: { plugins: [{ name: "json", source: "npm", version: "0.4.6", location: "@saltcorn/json" }] },
+    plan: { operations: [{ action: "install_plugin", plugin: "json", version: "0.4.6", safe: true }] },
+  });
+  const installed = await models.Plugin.findOne({ name: "json" });
+  assert.equal(installed.location, "@saltcorn/json", "npm package name must be propagated, not the local name");
+});
+
+test("native adapter skips create_field on type errors instead of throwing 500", async () => {
+  // Simulate Field.create failing because the field type (e.g. "JSON") is
+  // provided by a plugin that isn't loaded in the runtime. Previously this
+  // threw and aborted the whole deploy with a 500; now it should be skipped.
+  const models = fakeModels({
+    table: { name: "audit", id: 163, fields: [] },
+  });
+  // Field.create throws as if the "JSON" type were unregistered.
+  models.Field = { create: async () => { throw new Error("Unable to get the sql_type: JSON"); } };
+  const adapter = nativeSaltcornAdapter(models);
+  const result = await adapter.applyPlan({
+    desired: { tables: [{ name: "audit", fields: [{ name: "metadata", type: "JSON" }] }] },
+    plan: { operations: [{ action: "create_field", table: "audit", field: "metadata" }] },
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.skipped.length, 1);
+  assert.match(result.skipped[0].reason, /Unable to get the sql_type: JSON/);
+  assert.equal(result.applied.length, 0);
+});
