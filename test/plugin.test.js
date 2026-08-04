@@ -149,9 +149,19 @@ test("validateApplyPayload guards REST apply", () => {
   assert.equal(destructive.valid, false);
   assert(destructive.errors.some((error) => /allow_destructive/.test(error)));
 
-  const unknown = validateApplyPayload({ env: "qa", desired: {}, plan: { operations: [] } });
-  assert.equal(unknown.valid, false);
-  assert(unknown.errors.some((error) => /unsupported environment/.test(error)));
+  const custom = validateApplyPayload({ env: "qa-2", desired: {}, plan: { operations: [] } });
+  assert.equal(custom.valid, true);
+
+  const customRequired = validateApplyPayload(
+    { env: "stage", desired: {}, plan: { operations: [] } },
+    { backupRequired: true }
+  );
+  assert.equal(customRequired.valid, false);
+  assert(customRequired.errors.some((error) => /verifiable backup metadata/.test(error)));
+
+  const invalid = validateApplyPayload({ env: "bad environment", desired: {}, plan: { operations: [] } });
+  assert.equal(invalid.valid, false);
+  assert(invalid.errors.some((error) => /invalid environment name/.test(error)));
 });
 
 test("applyAuthorized requires configured bearer token", () => {

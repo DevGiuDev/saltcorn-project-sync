@@ -41,7 +41,7 @@ Usage:
   saltcorn-project-sync backup [--env ENV] [--source FILE]
   saltcorn-project-sync record-deployment --env ENV --status STATUS
   saltcorn-project-sync doctor
-  saltcorn-project-sync doctor-live [--adapter command|rest|native]
+  saltcorn-project-sync doctor-live [--adapter command|rest|native] [--format json|human] [--human]
   saltcorn-project-sync check-live [--adapter command|native]
   saltcorn-project-sync check-sequences [--table-like PATTERN]
   saltcorn-project-sync fix-sequences [--table-like PATTERN]
@@ -56,10 +56,10 @@ Usage:
   saltcorn-project-sync git-pull
   saltcorn-project-sync git-push
   saltcorn-project-sync export [--adapter command|rest|native] --out DIR
-  saltcorn-project-sync plan-live [--adapter command|rest|native] [--env ENV] [--backup]
+  saltcorn-project-sync plan-live [--adapter command|rest|native] [--env ENV] [--backup] [--format json|human] [--human]
   saltcorn-project-sync verify-live [--adapter command|rest|native]
   saltcorn-project-sync apply [--adapter command|rest|native] [--env ENV] [--allow-destructive] [--full-output]
-  saltcorn-project-sync deploy [--adapter command|rest|native] --env ENV [--yes] [--allow-destructive] [--skip-backup] [--skip-verify] [--request-id ID]
+  saltcorn-project-sync deploy [--adapter command|rest|native] --env ENV [--yes] [--allow-destructive] [--skip-backup] [--skip-verify] [--request-id ID] [--format json|human] [--human]
   saltcorn-project-sync restore [--adapter command|rest|native] [--deployment ID|last]
   saltcorn-project-sync list-seeds
   saltcorn-project-sync list-migrations
@@ -67,6 +67,7 @@ Usage:
   saltcorn-project-sync apply-migrations [--adapter command|rest|native] [--env ENV]
   saltcorn-project-sync add-seed --name NAME [--order N]
   saltcorn-project-sync add-migration --name NAME [--order N]
+  saltcorn-project-sync bootstrap [--adapter command|rest|native] [--env ENV] [--with-seeds] [--with-migrations] [--phase pre-deploy|post-deploy]
   saltcorn-project-sync reset [--adapter command|rest|native] [--env ENV] --yes-reset-everything
 
 Live export/apply is adapter-backed. Use 'command' for wrappers or 'native' inside a Saltcorn runtime with @saltcorn/data available.
@@ -402,9 +403,140 @@ async function runLiveChecks(adapterName) {
   return { ok: checks.every((check) => check.ok), adapter: adapter.name || adapterName, info, saltcorn, plugins, checks };
 }
 
+function requestedOutputFormat(commandName) {
+  const format = arg("--format", has("--human") ? "human" : "json");
+  if (!["json", "human"].includes(format)) throw new Error(`${commandName} --format must be json or human`);
+  return format;
+}
+
+function operationTarget(operation = {}) {
+  if (operation.table && operation.field) return `${operation.table}.${operation.field}`;
+  if (operation.table && operation.from && operation.to) return `${operation.table}.${operation.from} -> ${operation.to}`;
+  if (operation.from && operation.to) return `${operation.from} -> ${operation.to}`;
+  for (const key of ["table", "view", "page", "trigger", "role", "plugin", "setting", "menu", "name"]) {
+    if (operation[key]) return String(operation[key]);
+  }
+  return "";
+}
+
+function warningTarget(warning = {}) {
+  const values = [warning.table, warning.field, warning.view, warning.page, warning.trigger, warning.role, warning.plugin]
+    .filter(Boolean);
+  return values.length ? ` (${values.join(".")})` : "";
+}
+
+function formatPlanLiveHuman(result) {
+  const operations = result.operations || [];
+  const warnings = result.warnings || [];
+  const blocked = result.blocked || [];
+  const lines = [
+    "Saltcorn Project Sync - live plan",
+    `Environment: ${result.env}`,
+    `Adapter: ${result.adapter}`,
+    `Overall: ${blocked.length ? "BLOCKED" : "READY"}`,
+    `Operations: ${operations.length}; warnings: ${warnings.length}; blocked: ${blocked.length}`,
+    `Backup required: ${result.backup_required ? "yes" : "no"}; backup flag present: ${result.backup_present ? "yes" : "no"}`,
+  ];
+  if (result.previous_version) lines.push(`Previous version: ${result.previous_version}`);
+
+  lines.push("", "Operations");
+  if (!operations.length) lines.push("  None");
+  for (const operation of operations) {
+    const safety = operation.safe === false ? "DESTRUCTIVE" : "SAFE";
+    const target = operationTarget(operation);
+    const version = operation.version ? ` @ ${operation.version}` : "";
+    lines.push(`  [${safety}] ${operation.action || "unknown"}${target ? ` ${target}` : ""}${version}`);
+  }
+
+  if (warnings.length) {
+    lines.push("", "Warnings");
+    for (const warning of warnings) {
+      lines.push(`  - ${warning.type || "warning"}${warningTarget(warning)}${warning.message ? `: ${warning.message}` : ""}`);
+    }
+  }
+
+  if (blocked.length) {
+    lines.push("", "Blocked");
+    for (const entry of blocked) lines.push(`  - ${entry.code || "blocked"}: ${entry.reason || entry.message || "operation is blocked"}`);
+  }
+
+  return `${lines.join("\n")}\n`;
+}
+
+function doctorCheckDetails(check) {
+  const lines = [];
+  for (const error of check.errors || []) lines.push(`error: ${error}`);
+  for (const warning of check.warnings || []) lines.push(`warning: ${warning}`);
+
+  if (check.name === "REST/plugin reachability" && check.info) {
+    if (check.info.saltcorn_version) lines.push(`Saltcorn ${check.info.saltcorn_version}`);
+    if (check.info.adapter) lines.push(`remote adapter: ${check.info.adapter}`);
+  }
+
+  if (check.name === "Saltcorn version" && check.result) {
+    const actual = check.result.actual_version || "unknown";
+    lines.push(`${actual} (required >= ${check.result.min_version || "unknown"})`);
+    if (check.result.warning) lines.push(`warning: ${check.result.warning}`);
+  }
+
+  if (check.name === "live export" && check.counts) {
+    lines.push(Object.entries(check.counts).map(([kind, count]) => `${kind}: ${count}`).join(", "));
+  }
+
+  if (check.name === "required plugins" && check.result) {
+    for (const plugin of check.result.missing || []) {
+      lines.push(`missing: ${plugin.name}${plugin.version ? ` ${plugin.version}` : ""}`);
+    }
+    for (const mismatch of check.result.mismatched || []) {
+      const required = mismatch.required || {};
+      const actual = mismatch.actual || {};
+      lines.push(`version mismatch: ${required.name || actual.name || "unknown"} (required ${required.version || "unknown"}, live ${actual.version || "unknown"})`);
+    }
+  }
+
+  if (check.name === "adapter capabilities" && check.capabilities) {
+    const resources = check.capabilities.resources || {};
+    const apply = Object.entries(resources).filter(([, value]) => value.apply).map(([name]) => name);
+    const unsupported = Object.entries(resources).filter(([, value]) => !value.apply).map(([name]) => name);
+    if (apply.length) lines.push(`apply: ${apply.join(", ")}`);
+    if (unsupported.length) lines.push(`apply unavailable: ${unsupported.join(", ")}`);
+    const methods = check.capabilities.methods || {};
+    lines.push(`backup: ${methods.backup ? "available" : "unavailable"}; restore: ${methods.restore ? "available" : "unavailable"}`);
+  }
+
+  return lines;
+}
+
+function formatDoctorLiveHuman(result, env) {
+  const passed = result.checks.filter((check) => check.ok && !check.skipped).length;
+  const failed = result.checks.filter((check) => !check.ok).length;
+  const skipped = result.checks.filter((check) => check.skipped).length;
+  const lines = [
+    "Saltcorn Project Sync - live doctor",
+    `Environment: ${env}`,
+    `Adapter: ${result.adapter}`,
+    `Overall: ${result.ok ? "READY" : "NOT READY"}`,
+    "",
+  ];
+
+  for (const check of result.checks) {
+    const status = check.skipped ? "SKIP" : check.ok ? "OK" : "FAIL";
+    lines.push(`[${status}] ${check.name}`);
+    for (const detail of doctorCheckDetails(check)) lines.push(`       ${detail}`);
+  }
+
+  lines.push("", `Summary: ${passed} passed, ${failed} failed, ${skipped} skipped`);
+  return `${lines.join("\n")}\n`;
+}
+
 async function commandDoctorLive() {
+  const format = requestedOutputFormat("doctor-live");
   const result = await runLiveChecks(arg("--adapter", process.env.SALTCORN_PROJECT_SYNC_ADAPTER || "command"));
-  process.stdout.write(canonicalStringify(result));
+  if (format === "human") {
+    process.stdout.write(formatDoctorLiveHuman(result, arg("--env", process.env.SALTCORN_PROJECT_SYNC_ENV || "dev")));
+  } else {
+    process.stdout.write(canonicalStringify(result));
+  }
   if (!result.ok) process.exit(4);
 }
 
@@ -487,6 +619,7 @@ function commandGitPush() {
 }
 
 async function commandPlanLive() {
+  const format = requestedOutputFormat("plan-live");
   const adapterName = arg("--adapter", process.env.SALTCORN_PROJECT_SYNC_ADAPTER || "command");
   const adapter = getTenantAdapter(adapterName);
   const env = arg("--env", "dev");
@@ -495,7 +628,8 @@ async function commandPlanLive() {
   const tenantVersion = lastAppliedVersion();
   const intents = loadChangeIntents(process.cwd(), { sinceVersion: tenantVersion });
   const plan = planProject({ desired, actual, intents, env, backup: has("--backup") });
-  process.stdout.write(canonicalStringify({ ...plan, adapter: adapter.name || adapterName, previous_version: tenantVersion }));
+  const result = { ...plan, adapter: adapter.name || adapterName, previous_version: tenantVersion };
+  process.stdout.write(format === "human" ? formatPlanLiveHuman(result) : canonicalStringify(result));
 }
 
 function bucketDiff(entry = {}) {
@@ -610,17 +744,19 @@ async function commandApplyLive() {
   // Version-aware intent filtering: only load intents newer than last applied version
   const tenantVersion = lastAppliedVersion();
   const intents = loadChangeIntents(process.cwd(), { sinceVersion: tenantVersion });
-  const projectVersion = (loadManifest() || {}).version || null;
+  const manifest = loadManifest() || {};
+  const projectVersion = manifest.version || null;
+  const policy = backupPolicy(env, process.env.SALTCORN_PROJECT_SYNC_BACKUP_POLICY);
 
   let backup = has("--backup");
   let backupResult = null;
-  if (backup || env === "prod" || env === "test") {
-    backupResult = await adapter.backup();
+  if (backup || policy === "required") {
+    backupResult = await adapter.backup({ project_slug: manifest.slug || manifest.name || "default", env });
     backup = isVerifiableBackupMetadata(backupResult);
-    if ((env === "prod" || env === "test") && !backup) {
+    if (policy === "required" && !backup) {
       process.stdout.write(canonicalStringify({
         applied: false,
-        errors: ["verifiable backup metadata is required for test/prod apply"],
+        errors: [`verifiable backup metadata is required for ${env} apply`],
         backup_result: backupResult,
       }));
       process.exit(3);
@@ -652,6 +788,7 @@ async function commandApplyLive() {
         backup,
         backup_metadata: backupResult,
         allow_destructive: has("--allow-destructive"),
+        project_slug: manifest.slug || manifest.name || "default",
       })
     : await adapter.applyProject(result.state);
   if (adapterResult && adapterResult.ok === false) {
@@ -746,18 +883,111 @@ function promptConfirm(message) {
   });
 }
 
+function deployStepDetails(step = {}) {
+  const details = [];
+  for (const error of step.errors || []) details.push(`error: ${error}`);
+  if (step.error) details.push(`error: ${step.error}`);
+  const counts = [];
+  if (step.operations !== undefined) counts.push(`${step.operations} operation(s)`);
+  if (step.destructive_operations !== undefined) counts.push(`${step.destructive_operations} destructive`);
+  if (step.warnings !== undefined) counts.push(`${step.warnings} warning(s)`);
+  if (counts.length) details.push(counts.join(", "));
+  if (step.saltcorn_version) details.push(`Saltcorn ${step.saltcorn_version}`);
+  if (step.target) details.push(`target: ${step.target}`);
+  if (Array.isArray(step.refreshed) && step.refreshed.length) details.push(`refreshed: ${step.refreshed.join(", ")}`);
+  return details;
+}
+
+function formatDeployHuman(result) {
+  const lines = [
+    "Saltcorn Project Sync - deploy",
+    `Environment: ${result.env}`,
+    `Adapter: ${result.adapter}`,
+    `Overall: ${result.ok ? "APPLIED" : "FAILED"}`,
+  ];
+  if (result.deployment_id) lines.push(`Deployment: ${result.deployment_id}`);
+  if (result.version) lines.push(`Version: ${result.previous_version || "unknown"} -> ${result.version}`);
+  if (result.commit) lines.push(`Commit: ${result.commit}`);
+  if (result.operations !== undefined) {
+    lines.push(`Operations: ${result.operations}; destructive: ${result.destructive_operations || 0}; warnings: ${result.warnings || 0}`);
+  }
+
+  if (result.backup) {
+    const backupId = result.backup.id || result.backup.path || "no verifiable identifier";
+    const verified = Boolean(result.backup.id || result.backup.path || result.backup.created_at || result.backup.sha256);
+    const backupStatus = result.backup.ok === false ? "failed" : verified ? "complete" : "unverified";
+    lines.push(`Backup: ${backupStatus} (${backupId})`);
+  }
+  if (result.convergence) lines.push(`Convergence: ${result.convergence.ok ? "OK" : "DRIFT"} (${result.convergence.drift_count || 0} drift)`);
+  if (result.ledger) {
+    lines.push(result.ledger.error ? `Target ledger: failed (${result.ledger.error})` : `Target ledger: ${result.ledger.deployment_id || "recorded"}`);
+  }
+  if (result.post_deploy_error) lines.push(`Post-deploy error: ${result.post_deploy_error}`);
+  const adapterErrors = [];
+  let adapterResult = result.adapter_result;
+  while (adapterResult && typeof adapterResult === "object") {
+    for (const error of adapterResult.errors || []) adapterErrors.push(error);
+    if (adapterResult.error) adapterErrors.push(adapterResult.error);
+    for (const skipped of adapterResult.skipped || []) {
+      if (skipped.reason) adapterErrors.push(`skipped ${operationTarget(skipped.op || {}) || "operation"}: ${skipped.reason}`);
+    }
+    adapterResult = adapterResult.adapter_result;
+  }
+  if (adapterErrors.length) {
+    lines.push("", "Failure details");
+    for (const error of adapterErrors) lines.push(`  - ${error}`);
+  }
+
+  lines.push("", "Steps");
+  for (const step of result.steps || []) {
+    const status = step.skipped ? "SKIP" : step.ok === false ? "FAIL" : "OK";
+    lines.push(`  [${status}] ${step.step}`);
+    for (const detail of deployStepDetails(step)) lines.push(`         ${detail}`);
+  }
+  return `${lines.join("\n")}\n`;
+}
+
 async function commandDeploy() {
+  const format = requestedOutputFormat("deploy");
   const adapterName = arg("--adapter", process.env.SALTCORN_PROJECT_SYNC_ADAPTER || "command");
   const env = arg("--env", "dev");
   const yes = has("--yes");
   const allowDestructive = has("--allow-destructive");
   const skipBackup = has("--skip-backup");
   const skipVerify = has("--skip-verify");
+  const noHooks = has("--no-hooks");
+  const skipSeeds = has("--skip-seeds");
+  const skipMigrations = has("--skip-migrations");
   const adapter = getTenantAdapter(adapterName);
   const steps = [];
 
+  // Load seed/migration phase plans from the working tree (unless disabled).
+  // Pre-deploy hooks run before the structural apply; post-deploy hooks run
+  // after refresh and before convergence verification.
+  let seedPhasePlans = null;
+  if (!noHooks) {
+    const allOps = [];
+    if (!skipSeeds) {
+      const seedFiles = loadSeedFiles();
+      const seedPlan = planSeeds(seedFiles.filter((s) => s.valid).map((s) => ({ seed: s.seed, file: s.file })));
+      allOps.push(...seedPlan.operations);
+    }
+    if (!skipMigrations) {
+      const migrationFiles = loadMigrationFiles();
+      const migPlan = planMigrations(migrationFiles.filter((m) => m.valid).map((m) => ({ migration: m.migration, file: m.file })));
+      allOps.push(...migPlan.operations);
+    }
+    const { partitionByPhase } = require("../lib/seeds");
+    const { preDeploy, postDeploy } = partitionByPhase(allOps);
+    seedPhasePlans = {
+      preDeploy: { operations: preDeploy, warnings: [] },
+      postDeploy: { operations: postDeploy, warnings: [] },
+    };
+  }
+
   const abort = (exitCode, extra = {}) => {
-    process.stdout.write(canonicalStringify({ ok: false, env, adapter: adapter.name || adapterName, steps, ...extra }));
+    const result = { ok: false, env, adapter: adapter.name || adapterName, steps, ...extra };
+    process.stdout.write(format === "human" ? formatDeployHuman(result) : canonicalStringify(result));
     process.exit(exitCode);
   };
 
@@ -829,16 +1059,40 @@ async function commandDeploy() {
   let backupVerified = false;
   if (backupRequested) {
     try {
-      backupResult = await adapter.backup();
+      backupResult = await adapter.backup({ project_slug: manifest.slug || manifest.name || "default", env });
     } catch (err) {
       steps.push({ step: "backup", ok: false, error: err.message });
       return abort(3);
     }
     backupVerified = isVerifiableBackupMetadata(backupResult);
-    steps.push({ step: "backup", ok: backupVerified, receipt: backupReceipt(backupResult) });
+    steps.push({
+      step: "backup",
+      ok: backupVerified,
+      receipt: backupReceipt(backupResult),
+      error: backupResult?.error,
+      errors: backupResult?.errors,
+    });
+    if (backupResult?.ok === false) return abort(3, { backup_result: backupResult });
     if (policy === "required" && !backupVerified) return abort(3);
   } else {
     steps.push({ step: "backup", ok: true, skipped: true, policy });
+  }
+
+  // 3.5) Pre-deploy hooks (seeds + migrations with phase: "pre-deploy").
+  // Fatal: if a pre-deploy hook fails, the structural apply is aborted.
+  const slug = (manifest || {}).slug || (manifest || {}).name || "default";
+  if (seedPhasePlans && seedPhasePlans.preDeploy.operations.length) {
+    try {
+      const preResult = await runCliPhaseHooks(adapter, seedPhasePlans.preDeploy, "pre_deploy_hooks", steps, slug, env);
+      if (preResult && preResult.ok === false) {
+        return abort(6);
+      }
+    } catch (err) {
+      steps.push({ step: "pre_deploy_hooks", ok: false, error: err.message });
+      return abort(6);
+    }
+  } else {
+    steps.push({ step: "pre_deploy_hooks", ok: true, skipped: true });
   }
 
   // 4) Apply
@@ -887,6 +1141,25 @@ async function commandDeploy() {
     } catch (_err) { /* non-critical */ }
   }
   steps.push({ step: "refresh", ok: true, refreshed: stateRefreshed });
+
+  // 5.5) Post-deploy hooks (seeds + migrations with phase: "post-deploy").
+  // Best-effort: the structure is already applied. Failures are reported
+  // but do not roll back the deployment.
+  let postDeployError = null;
+  if (seedPhasePlans && seedPhasePlans.postDeploy.operations.length) {
+    try {
+      const postResult = await runCliPhaseHooks(adapter, seedPhasePlans.postDeploy, "post_deploy_hooks", steps, slug, env);
+      if (postResult && postResult.ok === false) {
+        postDeployError = postResult.error;
+        steps.push({ step: "post_deploy_hooks", ok: false, error: postResult.error });
+      }
+    } catch (err) {
+      postDeployError = err.message;
+      steps.push({ step: "post_deploy_hooks", ok: false, error: err.message });
+    }
+  } else {
+    steps.push({ step: "post_deploy_hooks", ok: true, skipped: true });
+  }
 
   // 6) Verify post-apply convergence (authoritative: uses the plugin's
   // live-diff, which applies the project scope, so it agrees with `plan`).
@@ -966,8 +1239,8 @@ async function commandDeploy() {
     steps.push({ step: "record", ok: true, target: "local-only" });
   }
 
-  process.stdout.write(canonicalStringify({
-    ok: converged,
+  const result = {
+    ok: converged && !postDeployError,
     env,
     deployment_id: deploymentRecord.id,
     version: projectVersion,
@@ -981,9 +1254,52 @@ async function commandDeploy() {
     adapter: adapter.name || adapterName,
     state_refreshed: stateRefreshed,
     ledger,
+    post_deploy_error: postDeployError,
     steps,
-  }));
-  if (!converged) process.exit(5);
+  };
+  process.stdout.write(format === "human" ? formatDeployHuman(result) : canonicalStringify(result));
+  if (!converged || postDeployError) process.exit(5);
+}
+
+/**
+ * Run a deployment phase's hooks (pre or post) for the CLI deploy command.
+ * Records once-migrations in the ledger. Returns { ok, error, applied, skipped }.
+ */
+async function runCliPhaseHooks(adapter, phasePlan, stepName, steps, slug, env) {
+  const operations = (phasePlan && phasePlan.operations) || [];
+  if (!operations.length) {
+    steps.push({ step: stepName, ok: true, skipped: true });
+    return { ok: true };
+  }
+  steps.push({ step: stepName, ok: true, status: "running", operations: operations.length });
+  let result;
+  try {
+    result = adapter.applyPlan
+      ? await adapter.applyPlan({ desired: {}, plan: { operations } })
+      : { ok: false, error: "adapter does not support applyPlan" };
+    if (result && result.ok === false) {
+      steps.push({ step: stepName, ok: false, error: result.error, operations: operations.length });
+      return { ok: false, error: result.error };
+    }
+  } catch (err) {
+    steps.push({ step: stepName, ok: false, error: err.message, operations: operations.length });
+    return { ok: false, error: err.message };
+  }
+  // Record once-migrations in the ledger (best-effort).
+  const appliedOps = (result && result.applied) || [];
+  const recordedNames = new Set();
+  for (const op of appliedOps) {
+    if (op.run !== "once" || !op.migration_name || recordedNames.has(op.migration_name)) continue;
+    recordedNames.add(op.migration_name);
+    try {
+      const ledger = require("../lib/migration-ledger");
+      await ledger.recordApplied(slug, env, { name: op.migration_name, steps: [], phase: op.phase }, null);
+    } catch (_err) {
+      // Ledger recording is best-effort.
+    }
+  }
+  steps.push({ step: stepName, ok: true, status: "complete", operations: operations.length, applied: appliedOps.length, skipped: ((result && result.skipped) || []).length });
+  return { ok: true, applied: appliedOps, skipped: (result && result.skipped) || [] };
 }
 
 function commandListSeeds() {
@@ -1063,6 +1379,130 @@ function commandAddMigration() {
   const migration = { name, steps: [], _order: Number(order) };
   const file = writeMigrationFile(process.cwd(), migration);
   console.log(path.relative(process.cwd(), file));
+}
+
+async function commandBootstrap() {
+  const adapterName = arg("--adapter", process.env.SALTCORN_PROJECT_SYNC_ADAPTER || "command");
+  const env = arg("--env", "dev");
+  const adapter = getTenantAdapter(adapterName);
+  const phases = [];
+  const summary = { adapter: adapter.name || adapterName, env, phases };
+
+  // Phase 1: Export the CURRENT live state (NOT empty). The planner will only
+  // produce create operations for objects that are missing. This is the key
+  // difference from `reset`: bootstrap is additive and non-destructive.
+  let actual;
+  try {
+    actual = normalizeProjectExport(await adapter.exportProject({ referenceTables: loadProjectState().reference_data || [] }));
+  } catch (err) {
+    summary.error = `export failed: ${err.message}`;
+    process.stdout.write(canonicalStringify({ ok: false, ...summary }));
+    process.exit(2);
+  }
+
+  const desired = loadProjectState();
+  const intents = loadChangeIntents();
+  const applyResult = applyProject({ desired, actual, intents, env, backup: false, force: false });
+  if (!applyResult.applied) {
+    summary.error = (applyResult.errors || ["apply preflight failed"]).join("; ");
+    process.stdout.write(canonicalStringify({ ok: false, ...summary }));
+    process.exit(3);
+  }
+
+  // Phase 2: Apply structure (only the missing pieces).
+  let structureResult = null;
+  if (applyResult.plan.operations.length) {
+    try {
+      structureResult = adapter.applyPlan
+        ? await adapter.applyPlan({ desired, actual, plan: applyResult.plan, state: applyResult.state, env, backup: false, allow_destructive: false })
+        : await adapter.applyProject(applyResult.state);
+      phases.push({ phase: "structure", ok: structureResult && structureResult.ok !== false, operations: applyResult.plan.operations.length });
+    } catch (err) {
+      phases.push({ phase: "structure", ok: false, error: err.message });
+      process.stdout.write(canonicalStringify({ ok: false, ...summary, phases }));
+      process.exit(6);
+    }
+  } else {
+    phases.push({ phase: "structure", ok: true, operations: 0, note: "tenant already matches project structure" });
+  }
+
+  // Phase 3: Apply migrations (optional). Respects the ledger so once-migrations
+  // are not re-run. Falls back to running all when the ledger is unavailable
+  // (non-native adapters / no DB access), filtered by --phase if requested.
+  if (has("--with-migrations")) {
+    const requestedPhase = arg("--phase");
+    const migrationFiles = loadMigrationFiles();
+    const invalid = migrationFiles.filter((m) => !m.valid);
+    if (invalid.length) {
+      phases.push({ phase: "migrations", ok: false, error: `${invalid.length} invalid migration file(s)` });
+    } else {
+      let migrationsToRun = migrationFiles.map((m) => ({ migration: m.migration, file: m.file }));
+      if (requestedPhase) migrationsToRun = migrationsToRun.filter((e) => (e.migration.phase || "manual") === requestedPhase);
+      // Try to filter pending via ledger (native adapter with DB access)
+      let ledgerAvailable = false;
+      const slug = (loadManifest() || {}).slug || "default";
+      try {
+        const ledger = require("../lib/migration-ledger");
+        const pending = await ledger.filterPending(slug, env, migrationsToRun.map((e) => e.migration));
+        const pendingNames = new Set(pending.map((m) => m.name));
+        migrationsToRun = migrationsToRun.filter((e) => pendingNames.has(e.migration.name));
+        ledgerAvailable = true;
+      } catch (_ledgerErr) {
+        // Ledger unavailable (non-native adapter); run all matching migrations.
+      }
+      if (migrationsToRun.length) {
+        const migPlan = planMigrations(migrationsToRun);
+        try {
+          const migResult = adapter.applyPlan ? await adapter.applyPlan({ desired: {}, plan: migPlan }) : { ok: false, error: "adapter does not support applyPlan" };
+          phases.push({ phase: "migrations", ok: migResult.ok !== false, operations: migPlan.operations.length, ledger: ledgerAvailable ? "filtered" : "all", result: migResult });
+        } catch (err) {
+          phases.push({ phase: "migrations", ok: false, error: err.message });
+        }
+      } else {
+        phases.push({ phase: "migrations", ok: true, operations: 0, note: "no pending migrations", ledger: ledgerAvailable ? "filtered" : "n/a" });
+      }
+    }
+  }
+
+  // Phase 4: Apply seeds (optional, idempotent by design).
+  if (has("--with-seeds")) {
+    const requestedPhase = arg("--phase");
+    const seedFiles = loadSeedFiles();
+    const invalidSeeds = seedFiles.filter((s) => !s.valid);
+    if (invalidSeeds.length) {
+      phases.push({ phase: "seeds", ok: false, error: `${invalidSeeds.length} invalid seed file(s)` });
+    } else {
+      let seedsToRun = seedFiles.map((s) => ({ seed: s.seed, file: s.file }));
+      if (requestedPhase) seedsToRun = seedsToRun.filter((e) => (e.seed.phase || "manual") === requestedPhase);
+      if (seedsToRun.length) {
+        const seedPlan = planSeeds(seedsToRun);
+        const hasDestructive = seedPlan.operations.some((op) => op.destructive);
+        if (hasDestructive && !has("--allow-destructive")) {
+          phases.push({ phase: "seeds", ok: false, error: "seed plan contains destructive operations; add --allow-destructive" });
+        } else {
+          try {
+            const seedResult = adapter.applyPlan ? await adapter.applyPlan({ desired: {}, plan: seedPlan }) : { ok: false, error: "adapter does not support applyPlan" };
+            phases.push({ phase: "seeds", ok: seedResult.ok !== false, operations: seedPlan.operations.length, result: seedResult });
+          } catch (err) {
+            phases.push({ phase: "seeds", ok: false, error: err.message });
+          }
+        }
+      } else {
+        phases.push({ phase: "seeds", ok: true, operations: 0, note: "no seed files for the requested phase" });
+      }
+    }
+  }
+
+  const allOk = phases.every((p) => p.ok !== false);
+  appendDeploymentRecord(process.cwd(), {
+    env,
+    status: allOk ? "bootstrap-complete" : "bootstrap-partial",
+    commit: currentGitCommit(),
+    phases: phases.map((p) => ({ phase: p.phase, ok: p.ok })),
+    operations: applyResult.plan.operations.length,
+  });
+  process.stdout.write(canonicalStringify({ ok: allOk, ...summary, structure_result: structureResult }));
+  if (!allOk) process.exit(6);
 }
 
 async function commandReset() {
@@ -1218,6 +1658,7 @@ async function dispatch() {
   else if (cmd === "add-seed") commandAddSeed();
   else if (cmd === "add-migration") commandAddMigration();
   else if (cmd === "reset") await commandReset();
+  else if (cmd === "bootstrap") await commandBootstrap();
   else {
     usage();
     process.exit(1);
@@ -1231,7 +1672,7 @@ async function main() {
   activateEnvironmentConfig(resolved);
   const liveCommands = new Set([
     "doctor-live", "check-live", "export", "plan-live", "verify-live", "apply",
-    "deploy", "restore", "apply-seeds", "apply-migrations", "reset",
+    "deploy", "restore", "apply-seeds", "apply-migrations", "reset", "bootstrap",
   ]);
   if (liveCommands.has(cmd) && !resolved.validation.valid) {
     throw new Error(`Invalid environment profile ${env}: ${resolved.validation.errors.join("; ")}`);

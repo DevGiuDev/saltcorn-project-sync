@@ -6,6 +6,11 @@ async function onLoad() {
   // deliberately separate from the project export/scope tables.
   const projectSetup = require("./lib/project-setup");
   await projectSetup.ensureTables();
+  try {
+    await require("./lib/migration-ledger").ensureLedger();
+  } catch (err) {
+    if (err.code !== "MIGRATION_LEDGER_UNAVAILABLE") console.warn(`[scps-setup] Migration ledger unavailable: ${err.message}`);
+  }
   const operational = require("./lib/plugin/operational-config");
   await operational.ensureOperationalConfigTable();
   await require("./lib/plugin/token-store").loadTokenCache();

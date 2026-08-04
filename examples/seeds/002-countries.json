@@ -1,0 +1,19 @@
+{
+  "name": "countries",
+  "phase": "post-deploy",
+  "mode": "upsert",
+  "run": "always",
+  "tables": [
+    {
+      "table": "countries",
+      "key": "code",
+      "rows": [
+        { "code": "ES", "name": "Spain" },
+        { "code": "FR", "name": "France" },
+        { "code": "DE", "name": "Germany" },
+        { "code": "IT", "name": "Italy" },
+        { "code": "PT", "name": "Portugal" }
+      ]
+    }
+  ]
+}

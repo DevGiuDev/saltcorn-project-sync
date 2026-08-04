@@ -51,6 +51,15 @@ test("plan-live exports live state and computes a plan through the command adapt
   const plan = JSON.parse(result.stdout);
   assert.equal(plan.adapter, "command");
   assert.ok(plan.operations.some((op) => op.action === "create_table" && op.table === "users"));
+
+  const human = run(["plan-live", "--adapter", "command", "--env", "dev", "--human"], {
+    cwd: dir,
+    env: { ...process.env, SALTCORN_PROJECT_SYNC_EXPORT_CMD: `printf '${emptyTenantExport()}'` },
+  });
+  assert.equal(human.status, 0, human.stderr || human.stdout);
+  assert.match(human.stdout, /Overall: READY/);
+  assert.match(human.stdout, /\[SAFE\] create_table users/);
+  assert.doesNotMatch(human.stdout, /^\s*\{/);
 });
 
 test("verify-live reports zero drift when live state matches desired state", () => {

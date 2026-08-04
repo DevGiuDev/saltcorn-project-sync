@@ -31,6 +31,17 @@ runtime hook references describe that server. A CLI profile is read from the
 checkout on the machine running the CLI. They may describe the same logical
 environment, but they are not required to use the same filesystem path.
 
+Environment names are project-defined identifiers, not a fixed global enum.
+Names such as `stage`, `test2`, or `prod-test` are valid. Before REST backup or
+apply, the target plugin resolves `project_slug` and requires an exact matching
+environment row saved for that project in Project Sync settings. A local
+profile name alone never authorizes a new deployment target.
+
+The built-in names `local`, `dev`, `test`, and `prod` only provide default
+safety policies. Custom environments take their backup policy from the target
+configuration; set `backup_policy: required` for staging or production-like
+targets.
+
 For each project and target environment, the wizard configures:
 
 - checkout root and non-secret repository URL;

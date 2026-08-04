@@ -71,12 +71,14 @@ The plugin exposes a project-first UI:
 
 - requires a valid generated token or `SALTCORN_PROJECT_SYNC_API_TOKEN`
 - requires matching `Authorization: Bearer <token>`
-- allows `env=local`, `env=dev`, `env=test`, and `env=prod`
+- accepts any valid configured environment name and requires an exact match in
+  the target project's operational configuration
 - expects a CLI-generated payload containing `desired`, `plan`, `state`, and `env`
 - accepts `request_id` and `project_slug` to identify the attempt and acquire a target lock
 - rejects blocked plans
 - rejects destructive operations unless `allow_destructive=true`
-- requires `backup=true` plus verifiable `backup_metadata` for `test` and `prod`
+- requires `backup=true` plus verifiable `backup_metadata` for `test`, `prod`,
+  and custom environments whose target-side backup policy is `required`
 - reports the apply as failed when the native adapter skips any planned operation
 - rejects a concurrent apply for the same project/environment with HTTP 409
 

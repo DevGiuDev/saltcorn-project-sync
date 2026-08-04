@@ -1,0 +1,8 @@
+{
+  "name": "index-messages-priority",
+  "phase": "pre-deploy",
+  "run": "once",
+  "steps": [
+    { "action": "raw_sql", "sql": "CREATE INDEX IF NOT EXISTS idx_messages_priority ON messages(priority)" }
+  ]
+}

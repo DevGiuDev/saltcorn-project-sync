@@ -93,13 +93,42 @@ test("deploy runs the full pipeline with --yes and records a local deployment", 
   assert.equal(body.backup.id, "cmd-backup");
   assert.equal(body.adapter, "command");
   const stepNames = body.steps.map((s) => s.step);
-  assert.deepEqual(stepNames, ["connect", "compatibility", "plan", "confirmation", "backup", "apply", "refresh", "verify", "record"]);
+  assert.deepEqual(stepNames, ["connect", "compatibility", "plan", "confirmation", "backup", "pre_deploy_hooks", "apply", "refresh", "post_deploy_hooks", "verify", "record"]);
   assert.equal(body.steps.find((s) => s.step === "record").target, "local-only");
 
   const { loadDeploymentRecords } = require("../lib/deployments");
   const records = loadDeploymentRecords(dir);
   assert.equal(records.length, 1);
   assert.equal(records[0].env, "dev");
+});
+
+test("deploy offers human-readable success receipts", () => {
+  const dir = tmpDir();
+  initProject(dir);
+  writeProjectFile(dir, "tables", "users", { name: "users", fields: [{ name: "id", type: "Integer" }] });
+
+  const result = run(["deploy", "--adapter", "command", "--env", "dev", "--yes", "--skip-verify", "--human"], {
+    cwd: dir,
+    env: baseEnv(),
+  });
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.match(result.stdout, /Overall: APPLIED/);
+  assert.match(result.stdout, /\[OK\] apply/);
+  assert.match(result.stdout, /\[SKIP\] verify/);
+  assert.doesNotMatch(result.stdout, /^\s*\{/);
+});
+
+test("human deploy output includes remote adapter failure details", () => {
+  const dir = tmpDir();
+  initProject(dir);
+  writeProjectFile(dir, "tables", "users", { name: "users", fields: [{ name: "id", type: "Integer" }] });
+  const result = run(["deploy", "--adapter", "command", "--env", "dev", "--yes", "--skip-backup", "--human"], {
+    cwd: dir,
+    env: baseEnv({ SALTCORN_PROJECT_SYNC_APPLY_CMD: "cat >/dev/null; printf '{\"ok\":false,\"errors\":[\"remote apply rejected\"]}'" }),
+  });
+  assert.equal(result.status, 6, result.stderr || result.stdout);
+  assert.match(result.stdout, /Failure details/);
+  assert.match(result.stdout, /remote apply rejected/);
 });
 
 test("deploy requires verifiable backup metadata for test/prod", () => {

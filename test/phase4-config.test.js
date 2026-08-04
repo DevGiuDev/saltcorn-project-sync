@@ -2,7 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { EventEmitter } = require("node:events");
 
-const { normalizeOperationalConfig } = require("../lib/plugin/operational-config");
+const { findOperationalConfig, normalizeOperationalConfig } = require("../lib/plugin/operational-config");
 const tokenStore = require("../lib/plugin/token-store");
 const { buildSshArgs, withManagedTransport } = require("../lib/transport");
 const { runSetupHealth } = require("../lib/plugin/setup-health");
@@ -15,6 +15,20 @@ test("operational config accepts references and interface roles but rejects plai
   });
   assert.throws(() => normalizeOperationalConfig({ base_url: "http://remote.test" }), /HTTPS/);
   assert.throws(() => normalizeOperationalConfig({ ui_mode: "mystery" }), /ui_mode/);
+});
+
+test("target environments distinguish configured names from unsaved defaults", async () => {
+  const db = {
+    query: async (sql, values = []) => {
+      if (/CREATE TABLE/.test(sql)) return { rows: [] };
+      if (values[1] === "prod-test") {
+        return { rows: [{ project_id: values[0], environment: "prod-test", config_json: { backup_policy: "required" } }] };
+      }
+      return { rows: [] };
+    },
+  };
+  assert.equal((await findOperationalConfig(7, "prod-test", db)).backup_policy, "required");
+  assert.equal(await findOperationalConfig(7, "stage", db), null);
 });
 
 test("stored token hashes authorize without retaining plaintext", () => {

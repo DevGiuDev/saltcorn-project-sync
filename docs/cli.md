@@ -11,15 +11,15 @@ saltcorn-project-sync plan --env prod --backup --tenant-export tenant.json
 saltcorn-project-sync report --env prod --backup --tenant-export tenant.json --out deploy-report.md
 saltcorn-project-sync preflight --env prod --backup --tenant-export tenant.json
 saltcorn-project-sync apply-file --env dev --tenant-export tenant.json --out applied.json
-saltcorn-project-sync plan-live --adapter rest --env dev --backup
+saltcorn-project-sync plan-live --adapter rest --env dev --backup --format human
 saltcorn-project-sync apply --adapter rest --env dev --allow-destructive
 saltcorn-project-sync verify-live --adapter rest
-saltcorn-project-sync deploy --adapter rest --env test --yes
+saltcorn-project-sync deploy --adapter rest --env test --yes --format human
 saltcorn-project-sync deploy --adapter rest --env dev --skip-backup
 saltcorn-project-sync backup --env prod
 saltcorn-project-sync record-deployment --env prod --status success
 saltcorn-project-sync doctor
-saltcorn-project-sync doctor-live --adapter command
+saltcorn-project-sync doctor-live --adapter command --format human
 saltcorn-project-sync check-live --adapter command
 saltcorn-project-sync restore --deployment last
 saltcorn-project-sync git-status
@@ -41,12 +41,21 @@ The `command` adapter is configured via environment variables:
 - `SALTCORN_PROJECT_SYNC_SEQUENCE_CHECK_CMD`: optional `doctor-live` command for Postgres sequence health. It should print JSON; `{ "ok": false }` marks the check failed.
 
 `doctor-live` runs live reachability, adapter capability, Saltcorn version, plugin lock, token/auth, live export, and optional sequence-health checks.
+Its default output remains canonical JSON for scripts and CI. Pass
+`--format human` (or the `--human` alias) for a concise terminal report with
+check status, object counts, plugin mismatches, and adapter capabilities.
 
 Live commands load `environments/<env>.json` before constructing the adapter. `--env` identifies the final target environment; it does not describe the laptop/runner where the command executes. Non-secret adapter, base URL, transport, branch/tenant, and runtime secret/hook references are supported. Process environment variables override the profile. See [Environment setup and precedence](environment-configuration.md).
 
 `plan-live` exports live state through the selected adapter and computes a plan
 directly, without a manually generated `--tenant-export` file. It applies the
 same version-aware change-intent filtering as `apply`.
+
+`plan-live` and `deploy` also accept `--format human` or `--human`. The human
+plan lists each operation with its safety classification plus warnings and
+blockers. The human deployment receipt shows backup, convergence, ledger, and
+per-step status. Their default remains canonical JSON, and output format never
+changes exit-code behavior.
 
 `apply` prints a compact deployment receipt by default: `ok`, `env`,
 `deployment_id`, `version`/`previous_version`, `commit`, operation/warning

@@ -5,7 +5,7 @@ const os = require("node:os");
 const path = require("node:path");
 const { execFileSync } = require("node:child_process");
 
-const { prepareDeployment, executeDeployment, backupPolicy, digest } = require("../lib/deploy-orchestrator");
+const { prepareDeployment, executeDeployment, runPhaseHooks, backupPolicy, digest } = require("../lib/deploy-orchestrator");
 const { validateGitRef, scopedSafeGitArgs, fetchRemote, resolveGitCommit, withGitCommitCheckout, fastForwardWorkingBranch, listDeploymentRefs, listCommitScopeEntries } = require("../lib/git-source");
 const { assertTargetTenant, persistScopeAdditions } = require("../lib/plugin/deploy-service");
 
@@ -259,4 +259,168 @@ test("deployment source fast-forwards a clean matching working branch", () => {
   assert(listDeploymentRefs(dir, "main").some((option) => option.value === "main"));
   fs.appendFileSync(path.join(dir, "saltcorn.project.json"), "\n");
   assert.throws(() => fastForwardWorkingBranch(dir, source), /Working tree is dirty/);
+});
+
+// ─── Pre/post deploy hooks ──────────────────────────────────
+
+/**
+ * Adapter that records every applyPlan call by phase, so we can assert
+ * which operations ran in each phase. The structural apply sets desired;
+ * hook applies are appended to `hookOps`.
+ */
+function hookTrackingAdapter() {
+  let actual = { tables: [], views: [], pages: [], triggers: [], roles: [], menu: [], settings: [], plugins: [] };
+  const hookOps = [];
+  return {
+    name: "memory",
+    capabilities: { methods: { backup: true } },
+    hookOps,
+    async info() { return { saltcorn_version: "1.6.1", capabilities: this.capabilities }; },
+    async exportProject() { return actual; },
+    async backup() { return { ok: true, id: "b1", created_at: "2026-08-03T12:00:00Z" }; },
+    async applyPlan(payload) {
+      const ops = (payload.plan && payload.plan.operations) || [];
+      const isHookRun = !payload.desired || (Object.keys(payload.desired).length === 0);
+      if (isHookRun) {
+        for (const op of ops) hookOps.push(op);
+        return { ok: true, applied: ops, skipped: [] };
+      }
+      actual = payload.desired;
+      return { ok: true, applied: ops, skipped: [] };
+    },
+  };
+}
+
+test("executeDeployment runs pre-deploy hooks before the structural apply", async () => {
+  const dir = projectFixture();
+  const adapter = hookTrackingAdapter();
+  const prepared = await prepareDeployment({ sourceDir: dir, adapter, env: "dev", backupRequested: false });
+  const events = [];
+  const result = await executeDeployment({
+    prepared, adapter, refresh: async () => [], onStep: async (e) => events.push(e),
+    seedPhasePlans: {
+      preDeploy: { operations: [{ action: "raw_sql", sql: "SELECT 1", phase: "pre-deploy", run: "once", migration_name: "pre-mig" }] },
+      postDeploy: { operations: [] },
+    },
+  });
+  assert.equal(result.ok, true);
+  assert.equal(adapter.hookOps.length, 1);
+  assert.equal(adapter.hookOps[0].migration_name, "pre-mig");
+  // Step ordering: pre_deploy_hooks before apply
+  const stepNames = events.map((e) => e.step);
+  const preIdx = stepNames.indexOf("pre_deploy_hooks");
+  const applyIdx = stepNames.findIndex((s, i) => s === "apply" && events[i].status === "running");
+  assert.ok(preIdx < applyIdx, "pre_deploy_hooks must run before apply");
+});
+
+test("executeDeployment runs post-deploy hooks after the structural apply", async () => {
+  const dir = projectFixture();
+  const adapter = hookTrackingAdapter();
+  const prepared = await prepareDeployment({ sourceDir: dir, adapter, env: "dev", backupRequested: false });
+  const events = [];
+  const result = await executeDeployment({
+    prepared, adapter, refresh: async () => [], onStep: async (e) => events.push(e),
+    seedPhasePlans: {
+      preDeploy: { operations: [] },
+      postDeploy: { operations: [
+        { action: "seed_row", table: "countries", row: { code: "ES" }, phase: "post-deploy", run: "always", source: "seed-countries" },
+      ] },
+    },
+  });
+  assert.equal(result.ok, true);
+  assert.equal(adapter.hookOps.length, 1);
+  assert.equal(adapter.hookOps[0].source, "seed-countries");
+  const stepNames = events.map((e) => e.step);
+  const applyCompleteIdx = stepNames.findIndex((s, i) => s === "apply" && events[i].status === "complete");
+  const postIdx = stepNames.indexOf("post_deploy_hooks");
+  assert.ok(applyCompleteIdx < postIdx, "post_deploy_hooks must run after apply completes");
+});
+
+test("pre-deploy hook failure aborts the deployment before apply", async () => {
+  const dir = projectFixture();
+  const adapter = hookTrackingAdapter();
+  // Force pre-deploy to fail
+  const origApplyPlan = adapter.applyPlan;
+  adapter.applyPlan = async (payload) => {
+    const isHookRun = !payload.desired || Object.keys(payload.desired).length === 0;
+    if (isHookRun) return { ok: false, error: "pre-deploy SQL failed" };
+    return origApplyPlan(payload);
+  };
+  const prepared = await prepareDeployment({ sourceDir: dir, adapter, env: "dev", backupRequested: false });
+  await assert.rejects(
+    executeDeployment({
+      prepared, adapter, refresh: async () => [],
+      seedPhasePlans: {
+        preDeploy: { operations: [{ action: "raw_sql", sql: "BAD", phase: "pre-deploy", run: "once", migration_name: "bad" }] },
+        postDeploy: { operations: [] },
+      },
+    }),
+    /pre-deploy SQL failed/
+  );
+});
+
+test("post-deploy hook failure is best-effort and reported, not thrown", async () => {
+  const dir = projectFixture();
+  const adapter = hookTrackingAdapter();
+  const origApplyPlan = adapter.applyPlan;
+  adapter.applyPlan = async (payload) => {
+    const isHookRun = !payload.desired || Object.keys(payload.desired).length === 0;
+    if (isHookRun && (payload.plan?.operations || []).some((op) => op.phase === "post-deploy")) {
+      return { ok: false, error: "post-deploy seed failed" };
+    }
+    return origApplyPlan(payload);
+  };
+  const prepared = await prepareDeployment({ sourceDir: dir, adapter, env: "dev", backupRequested: false });
+  const result = await executeDeployment({
+    prepared, adapter, refresh: async () => [],
+    seedPhasePlans: {
+      preDeploy: { operations: [] },
+      postDeploy: { operations: [{ action: "seed_row", table: "t", row: {}, phase: "post-deploy" }] },
+    },
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.post_deploy_error, "post-deploy seed failed");
+});
+
+test("executeDeployment records once-migrations in the ledger", async () => {
+  const dir = projectFixture();
+  const adapter = hookTrackingAdapter();
+  const prepared = await prepareDeployment({ sourceDir: dir, adapter, env: "dev", backupRequested: false });
+  const recorded = [];
+  const migrationLedger = {
+    project: "test-proj",
+    env: "dev",
+    async recordApplied(project, env, migration, deploymentId) {
+      recorded.push({ project, env, name: migration.name, deploymentId });
+    },
+  };
+  await executeDeployment({
+    prepared, adapter, refresh: async () => [],
+    seedPhasePlans: {
+      preDeploy: { operations: [
+        { action: "raw_sql", sql: "SELECT 1", phase: "pre-deploy", run: "once", migration_name: "once-mig" },
+        { action: "raw_sql", sql: "SELECT 2", phase: "pre-deploy", run: "once", migration_name: "once-mig" }, // same name, deduped
+      ] },
+      postDeploy: { operations: [] },
+    },
+    migrationLedger,
+    deploymentId: "deploy-123",
+  });
+  assert.equal(recorded.length, 1);
+  assert.equal(recorded[0].name, "once-mig");
+  assert.equal(recorded[0].deploymentId, "deploy-123");
+});
+
+test("executeDeployment without seedPhasePlans behaves like before (no hook steps)", async () => {
+  const dir = projectFixture();
+  const adapter = hookTrackingAdapter();
+  const prepared = await prepareDeployment({ sourceDir: dir, adapter, env: "dev", backupRequested: false });
+  const events = [];
+  const result = await executeDeployment({ prepared, adapter, refresh: async () => [], onStep: async (e) => events.push(e) });
+  assert.equal(result.ok, true);
+  assert.equal(adapter.hookOps.length, 0);
+  const stepNames = events.map((e) => e.step);
+  assert.equal(stepNames.includes("pre_deploy_hooks"), true); // still emitted as skipped
+  const preStep = events.find((e) => e.step === "pre_deploy_hooks");
+  assert.equal(preStep.status, "skipped");
 });

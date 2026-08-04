@@ -32,7 +32,13 @@ Requests include `Authorization: Bearer <SALTCORN_PROJECT_SYNC_API_TOKEN>` when 
 
 For apply, backup, and restore, the CLI sends a Bearer token and the Saltcorn plugin verifies it against either its hashed token registry or the legacy `SALTCORN_PROJECT_SYNC_API_TOKEN` process value. Generate and rotate registry tokens from the project setup page.
 
-REST apply supports `local`, `dev`, `test`, and `prod`. For `test` and `prod`, the CLI first invokes the remote backup endpoint and the apply payload must include non-skipped, verifiable backup metadata. Destructive operations additionally require an explicit change intent in the plan and `--allow-destructive`.
+REST apply accepts project-defined environment names. The project slug and
+environment must exactly match a configuration saved in the target plugin.
+For `test`, `prod`, and custom environments configured with a required backup
+policy, the CLI first invokes the remote backup endpoint and the apply payload
+must include non-skipped, verifiable backup metadata. Destructive operations
+additionally require an explicit change intent in the plan and
+`--allow-destructive`.
 
 Apply payloads also carry `request_id` and `project_slug`. The target acquires
 the same project/environment lock used by UI deployment and returns HTTP 409

@@ -197,3 +197,84 @@ test("native adapter reports clearer unavailable method errors", async () => {
     /field rename method unavailable.*field\.update/
   );
 });
+
+// ─── raw_sql transaccional ───────────────────────────────────
+
+function dbMock({ queries = [] } = {}) {
+  const calls = [];
+  return {
+    calls,
+    isSQLite: false,
+    getTenantSchema: () => "public",
+    select: async () => [],
+    async query(sql) {
+      calls.push(sql);
+      if (sql === "BEGIN" || sql === "COMMIT" || sql === "ROLLBACK") return { rows: [] };
+      // Simulate a failure for a specific SQL marker
+      if (queries.includes(sql)) throw new Error(`mock failure for: ${sql.slice(0, 30)}`);
+      return { rows: [] };
+    },
+  };
+}
+
+test("native adapter executes raw_sql in a transaction", async () => {
+  const db = dbMock();
+  const models = fakeModels();
+  models.Db = db;
+  const adapter = nativeSaltcornAdapter(models);
+  const result = await adapter.applyPlan({
+    desired: {},
+    plan: { operations: [{ action: "raw_sql", sql: "CREATE INDEX idx_status ON invoices(status)" }] },
+  });
+  assert.equal(result.applied.length, 1);
+  assert.deepEqual(db.calls, ["BEGIN", "CREATE INDEX idx_status ON invoices(status)", "COMMIT"]);
+  assert.equal(result.skipped.length, 0);
+});
+
+test("native adapter rolls back raw_sql on failure", async () => {
+  const failingSql = "UPDATE broken SET x = 1";
+  const db = dbMock({ queries: [failingSql] });
+  const models = fakeModels();
+  models.Db = db;
+  const adapter = nativeSaltcornAdapter(models);
+  const result = await adapter.applyPlan({
+    desired: {},
+    plan: { operations: [{ action: "raw_sql", sql: failingSql }] },
+  });
+  assert.equal(result.applied.length, 0);
+  assert.equal(result.skipped.length, 1);
+  assert.match(result.skipped[0].reason, /rolled back/);
+  // Ensure ROLLBACK was issued
+  assert.ok(db.calls.includes("ROLLBACK"));
+});
+
+test("native adapter skips raw_sql when db.query is unavailable", async () => {
+  const models = fakeModels();
+  // No Db on models, and optionalRequireOrNull will not find @saltcorn/data in test env
+  const adapter = nativeSaltcornAdapter(models);
+  const result = await adapter.applyPlan({
+    desired: {},
+    plan: { operations: [{ action: "raw_sql", sql: "SELECT 1" }] },
+  });
+  assert.equal(result.applied.length, 0);
+  assert.equal(result.skipped.length, 1);
+  assert.match(result.skipped[0].reason, /requires db\.query/);
+});
+
+test("native adapter executes multiple raw_sql statements sequentially", async () => {
+  const db = dbMock();
+  const models = fakeModels();
+  models.Db = db;
+  const adapter = nativeSaltcornAdapter(models);
+  const result = await adapter.applyPlan({
+    desired: {},
+    plan: { operations: [
+      { action: "raw_sql", sql: "CREATE INDEX a ON t(x)" },
+      { action: "raw_sql", sql: "CREATE INDEX b ON t(y)" },
+    ] },
+  });
+  assert.equal(result.applied.length, 2);
+  assert.equal(result.skipped.length, 0);
+  assert.ok(db.calls.includes("CREATE INDEX a ON t(x)"));
+  assert.ok(db.calls.includes("CREATE INDEX b ON t(y)"));
+});

@@ -4,8 +4,42 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+## 0.6.0 - 2026-08-04
+
+### Added
+
+- Human-readable `doctor-live`, `plan-live`, and `deploy` output through
+  `--format human`, with `--human` as a convenience alias; canonical JSON
+  remains the default for automation.
+- Versioned migrations and seeds with deployment phases (`pre-deploy`,
+  `post-deploy`, `manual`) so data-normalization and transformation scripts
+  run automatically at the right point of a deploy.
+- Migration ledger (`_sc_ps_migrations_applied`) tracking which `run: "once"`
+  migrations have been applied per project and environment, so side-effecting
+  migrations (`raw_sql` `UPDATE`, index creation, data backfills) never
+  re-execute.
+- Transactional `raw_sql` execution in the native adapter (`BEGIN`/`COMMIT`
+  with automatic rollback), enabling safe in-process data transformations.
+- `bootstrap` CLI command that applies project structure, seeds, and
+  migrations additively to a fresh server without resetting the schema.
+- Deploy hooks (`--no-hooks`, `--skip-seeds`, `--skip-migrations`) integrating
+  pre/post-deploy seeds and migrations into the `deploy` pipeline.
+- Data tab in the project workspace UI: a full manager to create, edit,
+  validate, and delete migration and seed files from templates, with ledger
+  status (applied/pending/failed) per environment.
+- Redesign the Data tab as a first-class editor: fixed controls (combos for
+  phase, run, mode), a step editor with add/remove/reorder, SQL syntax
+  highlighting via Saltcorn's Monaco editor, guided wizards with table/field
+  dropdowns (copy field, create index, transform data, add field, master
+  data, clear table), a raw-JSON tab, and two blocks separating single-
+  execution (once) from recurring (always) scripts.
+
 ### Changed
 
+- Make deployment environment names project-defined: REST backup/apply now
+  require the incoming project slug and environment to match an operational
+  environment explicitly saved in the target plugin, while target-side backup
+  policy remains authoritative.
 - Add newly detected tenant objects to project scope automatically, retaining
   the automatic exclusion policy for development-only objects.
 - Share the dark ink/cyan panel-header palette across project pages, including

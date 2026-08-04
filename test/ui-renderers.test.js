@@ -10,6 +10,7 @@ const {
 const { renderGitPage } = require("../lib/plugin/renderers/git");
 const { renderPlanPreview } = require("../lib/plugin/renderers/live-diff");
 const { renderDeployPage } = require("../lib/plugin/renderers/deploy");
+const { renderMigrationsPage } = require("../lib/plugin/renderers/migrations");
 
 test("settings renderer is project-scoped and includes health", () => {
   const html = renderSettingsPage({
@@ -188,4 +189,116 @@ test("deployment navigation hides workspace-only tools", () => {
   assert.match(html, /project-sync\/settings\?project_id=7/);
   assert.doesNotMatch(html, /project-sync\/git\?project_id=7/);
   assert.doesNotMatch(html, /project-sync\/live-diff\?project_id=7/);
+});
+
+// ─── Migrations / Seeds manager ─────────────────────────────
+
+test("migrations renderer asks to choose a project when no root is set", () => {
+  const html = renderMigrationsPage({ projectId: "", projectRoot: "" });
+  assert.match(html, /Data scripts/);
+  assert.match(html, /Choose a project first/);
+});
+
+test("migrations renderer shows empty blocks and create buttons when a root is configured", () => {
+  const html = renderMigrationsPage({
+    project: { id: 3, name: "Shop" },
+    projectId: 3,
+    projectRoot: "/srv/shop",
+    environment: "dev",
+    migrations: [],
+    seeds: [],
+  });
+  assert.match(html, /Data scripts/);
+  assert.match(html, /project-sync\/migrations\?project_id=3/);
+  // Two blocks per kind (once + always) with their empty states
+  assert.match(html, /Single execution \(once\)/);
+  assert.match(html, /Recurring \(always\)/);
+  assert.match(html, /id="btn-new-migration"/);
+  assert.match(html, /id="btn-new-seed"/);
+  assert.match(html, /id="dataEditorModal"/);
+  assert.match(html, /id="wizardModal"/);
+});
+
+test("migrations renderer splits migrations into once and always blocks", () => {
+  const html = renderMigrationsPage({
+    project: { id: 3, name: "Shop" },
+    projectId: 3,
+    projectRoot: "/srv/shop",
+    migrations: [
+      { file: "001-idx.json", name: "create-index", phase: "pre-deploy", run: "once", steps: 1, valid: true, ledger_status: "applied", ledger_applied_at: "2026-08-03T12:00:00Z" },
+      { file: "002-backfill.json", name: "backfill", phase: "post-deploy", run: "once", steps: 2, valid: false, ledger_status: null },
+      { file: "003-recurring.json", name: "recurring-cleanup", phase: "pre-deploy", run: "always", steps: 1, valid: true, ledger_status: null },
+    ],
+    seeds: [],
+  });
+  assert.match(html, /001-idx\.json/);
+  assert.match(html, /create-index/);
+  assert.match(html, /pre-deploy/);
+  assert.match(html, /post-deploy/);
+  assert.match(html, /applied/);
+  assert.match(html, /pending/);
+  assert.match(html, /invalid/);
+  // The recurring migration lands in the "always" block
+  assert.match(html, /003-recurring\.json/);
+  assert.match(html, /recurring-cleanup/);
+});
+
+test("migrations renderer editor modal has fixed controls container and tabs", () => {
+  const html = renderMigrationsPage({ project: { id: 3 }, projectId: 3, projectRoot: "/srv/p", migrations: [], seeds: [] });
+  // Fixed controls and step editor shells (populated by JS)
+  assert.match(html, /id="fixed-controls"/);
+  assert.match(html, /id="step-editor"/);
+  assert.match(html, /id="wizard-buttons"/);
+  // Tabs (form + raw JSON)
+  assert.match(html, /id="tab-form-btn"/);
+  assert.match(html, /id="tab-json-btn"/);
+  assert.match(html, /id="data-editor-json"/);
+  // Monaco-friendly textarea for raw JSON (static in the JSON tab)
+  assert.match(html, /class="to-code"/);
+  assert.match(html, /mode="application\/json"/);
+});
+
+test("migrations renderer wizard buttons include the main recipes", () => {
+  const html = renderMigrationsPage({ project: { id: 3 }, projectId: 3, projectRoot: "/srv/p", migrations: [], seeds: [] });
+  // The wizard button container exists; the buttons themselves are injected by JS.
+  assert.match(html, /id="wizard-buttons"/);
+  assert.match(html, /id="wizardModal"/);
+  assert.match(html, /id="wizard-confirm"/);
+});
+
+test("migrations renderer lists seeds with mode badges and run blocks", () => {
+  const html = renderMigrationsPage({
+    project: { id: 3, name: "Shop" },
+    projectId: 3,
+    projectRoot: "/srv/shop",
+    migrations: [],
+    seeds: [
+      { file: "001-countries.json", name: "countries", phase: "post-deploy", mode: "upsert", run: "always", tables: 1, valid: true },
+      { file: "002-fixture.json", name: "fixture-once", phase: "post-deploy", mode: "upsert", run: "once", tables: 2, valid: true },
+    ],
+  });
+  assert.match(html, /001-countries\.json/);
+  assert.match(html, /upsert/);
+  assert.match(html, /002-fixture\.json/);
+});
+
+test("migrations renderer shows error banner when present", () => {
+  const html = renderMigrationsPage({ project: { id: 1 }, projectId: 1, projectRoot: "/srv/p", error: "disk full" });
+  assert.match(html, /alert-danger/);
+  assert.match(html, /disk full/);
+});
+
+test("migrations renderer exposes project id to client script", () => {
+  const html = renderMigrationsPage({ project: { id: 9 }, projectId: 9, projectRoot: "/srv/p", migrations: [], seeds: [] });
+  assert.match(html, /window\.SCPS_DATA_PROJECT_ID = 9/);
+  assert.match(html, /window\.SCPS_DATA_ENVIRONMENT = "dev"/);
+});
+
+test("splitByRun separates once and always items", () => {
+  const { splitByRun } = require("../lib/plugin/renderers/migrations");
+  const items = [{ name: "a", run: "once" }, { name: "b", run: "always" }, { name: "c" }];
+  const { once, always } = splitByRun(items);
+  assert.equal(once.length, 2); // a + c (default once)
+  assert.equal(always.length, 1); // b
+  assert.equal(always[0].name, "b");
 });
