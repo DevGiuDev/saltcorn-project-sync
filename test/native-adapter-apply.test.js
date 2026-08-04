@@ -14,7 +14,7 @@ function namedModel(items = []) {
   };
 }
 
-function fakeModels({ table, views = [], pages = [], triggers = [], roles = [], menu = [], settings = [] } = {}) {
+function fakeModels({ table, views = [], pages = [], triggers = [], roles = [], menu = [], settings = [], plugins = [], pluginSupportsInstaller = true } = {}) {
   return {
     Table: {
       find: async () => (table ? [table] : []),
@@ -30,10 +30,63 @@ function fakeModels({ table, views = [], pages = [], triggers = [], roles = [], 
     Page: namedModel(pages),
     Trigger: namedModel(triggers),
     Role: namedModel(roles),
-    Plugin: { find: async () => [] },
+    Plugin: mockPluginModel(plugins, pluginSupportsInstaller),
     Menu: namedModel(menu),
     Setting: namedModel(settings),
   };
+}
+
+/**
+ * Build a mock Plugin model that mirrors the real Saltcorn Plugin class shape:
+ * static findOne/find + static loadAndSaveNewPlugin, instance upsert/delete.
+ * When pluginSupportsInstaller is false, loadAndSaveNewPlugin is omitted so
+ * the adapter must fall back to instance.upsert().
+ */
+function mockPluginModel(existing = [], supportsInstaller = true) {
+  // Coerce seed rows into MockPlugin instances so they carry instance methods
+  // (upsert/delete). Declared after the class below; seeded in a second pass.
+  let store;
+  class MockPlugin {
+    constructor(o = {}) {
+      this.id = o.id;
+      this.name = o.name;
+      this.source = o.source;
+      this.location = o.location;
+      this.version = o.version;
+      this.configuration = o.configuration;
+    }
+    async upsert() {
+      if (this.id === undefined) {
+        this.id = store.length + 1;
+        store.push(this);
+      } else {
+        const idx = store.findIndex((p) => p.id === this.id);
+        if (idx >= 0) store[idx] = this;
+      }
+    }
+    async delete() {
+      const idx = store.findIndex((p) => p.id === this.id);
+      if (idx >= 0) store.splice(idx, 1);
+    }
+    static async findOne(query) {
+      const name = typeof query === "string" ? query : query && query.name;
+      return store.find((p) => p.name === name) || null;
+    }
+    static async find() { return store.slice(); }
+  }
+  if (supportsInstaller) {
+    MockPlugin.loadAndSaveNewPlugin = async function (plugin, force) {
+      // Simulate the real installer: persist + "register" (no-op in test).
+      const existingIdx = store.findIndex((p) => p.name === plugin.name);
+      if (existingIdx >= 0) { plugin.id = store[existingIdx].id; store[existingIdx] = plugin; }
+      else { plugin.id = store.length + 1; store.push(plugin); }
+      MockPlugin._lastForce = force;
+      return [];
+    };
+  }
+  // Seed store now that MockPlugin exists, so seed rows carry instance methods.
+  store = existing.map((row) => new MockPlugin(row));
+  return MockPlugin;
 }
 
 test("native adapter applies rename_field with model update", async () => {
@@ -277,4 +330,80 @@ test("native adapter executes multiple raw_sql statements sequentially", async (
   assert.equal(result.skipped.length, 0);
   assert.ok(db.calls.includes("CREATE INDEX a ON t(x)"));
   assert.ok(db.calls.includes("CREATE INDEX b ON t(y)"));
+});
+
+// ─── plugin install / update ──────────────────────────────────
+
+test("native adapter installs a fresh plugin via loadAndSaveNewPlugin", async () => {
+  const models = fakeModels();
+  const adapter = nativeSaltcornAdapter(models);
+  const result = await adapter.applyPlan({
+    desired: { plugins: [{ name: "json", source: "npm", version: "0.4.6" }] },
+    plan: { operations: [{ action: "install_plugin", plugin: "json", version: "0.4.6", safe: true }] },
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.applied.length, 1);
+  assert.equal(result.skipped.length, 0);
+  // Plugin was registered via the installer
+  const installed = await models.Plugin.findOne({ name: "json" });
+  assert.ok(installed, "plugin row should exist after install");
+});
+
+test("native adapter updates an existing plugin forcing reinstall", async () => {
+  const models = fakeModels({ plugins: [{ name: "saltcorn-project-sync", source: "npm", version: "0.6.0" }] });
+  const Plugin = models.Plugin;
+  const adapter = nativeSaltcornAdapter(models);
+  const result = await adapter.applyPlan({
+    desired: { plugins: [{ name: "saltcorn-project-sync", source: "npm", version: "0.6.1" }] },
+    plan: { operations: [{ action: "update_plugin", plugin: "saltcorn-project-sync", version: "0.6.1", safe: true }] },
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.applied.length, 1);
+  // update_plugin must force the reinstall (loadAndSaveNewPlugin called with force=true)
+  assert.equal(Plugin._lastForce, true);
+  const after = await Plugin.findOne({ name: "saltcorn-project-sync" });
+  assert.equal(after.version, "0.6.1");
+});
+
+test("native adapter falls back to upsert when loadAndSaveNewPlugin is unavailable", async () => {
+  // Old Saltcorn build: no loadAndSaveNewPlugin on the model.
+  const models = fakeModels({ pluginSupportsInstaller: false });
+  const adapter = nativeSaltcornAdapter(models);
+  const result = await adapter.applyPlan({
+    desired: { plugins: [{ name: "json", source: "npm", version: "0.4.6" }] },
+    plan: { operations: [{ action: "install_plugin", plugin: "json", version: "0.4.6", safe: true }] },
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.applied.length, 1);
+  const installed = await models.Plugin.findOne({ name: "json" });
+  assert.ok(installed, "plugin row persisted via upsert fallback");
+  assert.equal(installed.version, "0.4.6");
+});
+
+test("native adapter skips plugin install when no install API is available", async () => {
+  // Plugin model reduced to a plain object with only find — simulates a model
+  // that exposes neither the installer nor instance persistence.
+  const models = fakeModels();
+  models.Plugin = { find: async () => [] };
+  const adapter = nativeSaltcornAdapter(models);
+  const result = await adapter.applyPlan({
+    desired: { plugins: [{ name: "json", source: "npm", version: "0.4.6" }] },
+    plan: { operations: [{ action: "install_plugin", plugin: "json", version: "0.4.6", safe: true }] },
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.skipped.length, 1);
+  assert.match(result.skipped[0].reason, /loadAndSaveNewPlugin|upsert/);
+});
+
+test("native adapter drops a plugin via instance.delete()", async () => {
+  const models = fakeModels({ plugins: [{ name: "legacy", source: "local", version: "1.0.0", id: 5 }] });
+  const adapter = nativeSaltcornAdapter(models);
+  const result = await adapter.applyPlan({
+    desired: {},
+    plan: { operations: [{ action: "drop_plugin", plugin: "legacy", safe: false }] },
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.applied.length, 1);
+  const gone = await models.Plugin.findOne({ name: "legacy" });
+  assert.equal(gone, null);
 });

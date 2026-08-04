@@ -3,7 +3,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
-const { transliterate, safeFileName, deduplicateSafeFileNames, stripObjectNoise, pullObjectToDisk, deleteObjectFromDisk } = require("../lib/project-io");
+const { transliterate, safeFileName, deduplicateSafeFileNames, stripObjectNoise, pullObjectToDisk, pullPluginToLock, deleteObjectFromDisk } = require("../lib/project-io");
 
 test("transliterate strips common diacritics", () => {
   assert.equal(transliterate("Métricas"), "Metricas");
@@ -113,6 +113,66 @@ test("deleteObjectFromDisk is idempotent when the file is already gone", () => {
     const res = deleteObjectFromDisk(dir, "views", "ghost");
     assert.equal(res.removed, false);
     assert.ok(!fs.existsSync(res.file));
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("pullPluginToLock writes plugins.lock.json and not objects/plugins/", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "scps-plugin-"));
+  try {
+    const res = pullPluginToLock(dir, { name: "saltcorn-project-sync", version: "0.6.1", source: "local" });
+    assert.equal(res.mode, "full");
+
+    const lockPath = path.join(dir, "plugins.lock.json");
+    assert.equal(res.file, lockPath);
+    assert.ok(fs.existsSync(lockPath), "plugins.lock.json should be written");
+
+    const stray = path.join(dir, "objects", "plugins", "saltcorn-project-sync.json");
+    assert.ok(!fs.existsSync(stray), "should NOT write a stray objects/plugins/ file");
+
+    const lock = JSON.parse(fs.readFileSync(lockPath, "utf8"));
+    assert.deepEqual(lock.plugins, [{ name: "saltcorn-project-sync", version: "0.6.1", source: "local" }]);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("pullPluginToLock upserts an existing plugin instead of duplicating", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "scps-plugin-"));
+  try {
+    pullPluginToLock(dir, { name: "buyapp", version: "0.6.0", source: "npm" });
+    pullPluginToLock(dir, { name: "buyapp", version: "0.6.1", source: "npm" });
+
+    const lock = JSON.parse(fs.readFileSync(path.join(dir, "plugins.lock.json"), "utf8"));
+    assert.deepEqual(lock.plugins, [{ name: "buyapp", version: "0.6.1", source: "npm" }]);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("pullPluginToLock selective mode merges only the requested property", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "scps-plugin-"));
+  try {
+    pullPluginToLock(dir, { name: "buyapp", version: "0.6.0", source: "npm" });
+    const res = pullPluginToLock(dir, { name: "buyapp", version: "0.6.1", source: "npm" }, ["version"]);
+    assert.equal(res.mode, "selective");
+    assert.deepEqual(res.adopted_keys, ["version"]);
+
+    const lock = JSON.parse(fs.readFileSync(path.join(dir, "plugins.lock.json"), "utf8"));
+    // version updated to live value, source untouched
+    assert.deepEqual(lock.plugins, [{ name: "buyapp", version: "0.6.1", source: "npm" }]);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("pullPluginToLock falls back to package_version when version is missing", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "scps-plugin-"));
+  try {
+    pullPluginToLock(dir, { name: "buyapp", package_version: "1.2.3" });
+    const lock = JSON.parse(fs.readFileSync(path.join(dir, "plugins.lock.json"), "utf8"));
+    assert.deepEqual(lock.plugins, [{ name: "buyapp", version: "1.2.3", source: "unknown" }]);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }

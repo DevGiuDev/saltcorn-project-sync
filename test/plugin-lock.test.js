@@ -66,3 +66,15 @@ test("planProject includes plugin lock changes", () => {
   assert(plan.operations.some((op) => op.action === "install_plugin" && op.plugin === "maps"));
   assert(plan.operations.some((op) => op.action === "update_plugin" && op.plugin === "calendar"));
 });
+
+test("planPlugins does not drift when only the source differs (local vs npm)", () => {
+  // Same plugin, same version, different source: dev has it as "local", prod
+  // as "npm". This is legitimate (source is machine-specific) and must NOT
+  // produce an update_plugin, otherwise the plan never converges.
+  const plan = planPlugins(
+    [{ name: "saltcorn-project-sync", version: "0.6.1", source: "local" }],
+    [{ name: "saltcorn-project-sync", version: "0.6.1", source: "npm" }]
+  );
+  assert.deepEqual(plan.operations, []);
+  assert.deepEqual(plan.warnings, []);
+});
